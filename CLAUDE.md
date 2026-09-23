@@ -87,5 +87,6 @@ manager are needed. New behaviors and objectives are expected to be covered the 
 - Every source file carries the MIT copyright header (`ament_copyright` enforces it).
 - Packages compile with `-Wall -Wextra -Wpedantic -Wshadow -Wconversion`; C++17.
 - `cpplint` runs with `--linelength=121`; `clang-format` uses the repo `.clang-format`.
-- `README.md` documents each objective's parameters, and `TODO.md` records deferred decisions
-  with the measurements behind them. Update the README when adding or changing an objective.
+- Each objective's parameters are documented in `docs/<ObjectiveName>.md` and listed in the
+  README; update both when adding or changing an objective. `TODO.md` records deferred
+  decisions with the measurements behind them.

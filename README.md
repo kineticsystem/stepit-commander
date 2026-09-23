@@ -23,9 +23,7 @@ XML file into a package, without touching the server.
 
 - [Packages](#packages)
 - [The command](#the-command)
-- [The OffsetJointsBy objective](#the-offsetjointsby-objective)
-- [The MoveJointsTo objective](#the-movejointsto-objective)
-- [The ActivateController objective](#the-activatecontroller-objective)
+- [Objectives](#objectives)
 - [Build and run](#build-and-run)
 - [Tests](#tests)
 - [Adding a new objective](#adding-a-new-objective)
@@ -72,123 +70,19 @@ without any further conversion:
 | `joints: [joint1, joint2]` | `std::vector<std::string>` |
 | `positions: [0.0, 1.5]` | `std::vector<double>` |
 
-## The OffsetJointsBy objective
 
-[`offset_joints_by.xml`](src/commander_objectives/objectives/offset_joints_by.xml)
-offsets one or more joints, at the same time, **relative** to the position they
-have when the objective starts. It is the relative counterpart of
-`MoveJointsTo`: the two names say how they differ, *by* an amount against *to* a
-position.
 
-| Parameter | Required | Meaning |
-|---|---|---|
-| `joints` | yes | The joints to move, e.g. `[joint1, joint3]`. |
-| `offset` | yes | The signed displacement of each joint, in radians. |
-| `duration` | no | Time to complete the motion, in seconds. Defaults to 5. |
 
-The tree reads the current position of the joints from `/joint_states`, turns
-the offset into absolute joint targets, and sends them as a single waypoint to
-the `FollowJointTrajectory` action of the `joint_trajectory_controller`:
+## Objectives
 
-```
-Sequence
-├── SubTree EnsureControllers  (activates joint_trajectory_controller)
-├── GetJointPositions          (reads /joint_states)             -> current_positions
-├── OffsetJointPositions       (pure logic: no ROS)              -> target_positions
-└── FollowJointTrajectory      (calls the trajectory controller)
-```
+Each objective is documented in its own file under [`docs`](docs), named after
+the objective, i.e. after the `target_tree` of the command:
 
-The objective starts by making sure the trajectory controller is the one
-driving the robot: it cannot send a trajectory otherwise. That first step is the
-`EnsureControllers` subtree, shared with `ActivateController`.
-
-**Sign convention.** The offset is signed, and its sign is the one of the joint
-positions themselves: a **negative** offset decreases the joint position, which
-on the StepIt motors means turning **clockwise**, as in the StepIt README, where
-`joint1` is rotated 6.28 rad clockwise by commanding the position `-6.28`. There
-is no separate direction parameter: `offset: -6.28` is one turn clockwise,
-`offset: 1.57` a quarter turn counterclockwise.
-
-## The MoveJointsTo objective
-
-[`move_joints_to.xml`](src/commander_objectives/objectives/move_joints_to.xml) is
-the absolute counterpart of `OffsetJointsBy`: it moves the joints **to** the given
-positions, whatever position they are in when the objective starts.
-
-| Parameter | Required | Meaning |
-|---|---|---|
-| `joints` | yes | The joints to move, e.g. `[joint1, joint2]`. |
-| `positions` | yes | The absolute target of each joint, in radians. One per joint. |
-| `duration` | no | Time to complete the motion, in seconds. Defaults to 5. |
-
-```bash
-ros2 action send_goal /commander/execute_objective \
-  btcpp_ros2_interfaces/action/ExecuteTree \
-  "{target_tree: MoveJointsTo,
-    payload: '{joints: [joint1, joint2], positions: [0.0, 1.57], duration: 3.0}'}"
-```
-
-```
-Sequence
-├── SubTree EnsureControllers  (activates joint_trajectory_controller)
-└── FollowJointTrajectory      (calls the trajectory controller)
-```
-
-It needs no C++ of its own. The positions are already the targets, so neither
-the current state of the robot nor an offset to apply to it come into
-it: `GetJointPositions` and `OffsetJointPositions` are simply not in the tree,
-and the payload goes straight to the controller. Running it twice leaves the
-robot where it was the first time.
-
-## The ActivateController objective
-
-[`activate_controller.xml`](src/commander_objectives/objectives/activate_controller.xml)
-stops whichever controller is currently driving the robot and activates the
-requested one instead.
-
-| Parameter | Required | Meaning |
-|---|---|---|
-| `controllers` | yes | The controllers to activate, e.g. `[velocity_controller]`. A single name may be written as a scalar. |
-
-```bash
-ros2 action send_goal /commander/execute_objective \
-  btcpp_ros2_interfaces/action/ExecuteTree \
-  "{target_tree: ActivateController, payload: '{controllers: velocity_controller}'}"
-```
-
-```
-ActivateController                        (the objective: reads the payload)
-└── SubTree EnsureControllers             (the reusable part)
-    ├── GetActiveControllers              (calls /controller_manager/list_controllers)
-    └── SwitchController                  (calls /controller_manager/switch_controller)
-```
-
-The objective itself is only an adapter: it forwards `{@controllers}` from the
-payload into the `EnsureControllers` subtree, which holds the actual work. Any
-objective that needs a given controller calls the same subtree with a fixed
-name, as `OffsetJointsBy` does:
-
-```xml
-<SubTree ID="EnsureControllers" controllers="joint_trajectory_controller"/>
-```
-
-The tree first asks the controller manager which controllers are running, and
-stops only those that **own a command interface**: a broadcaster such as the
-`joint_state_broadcaster` reads the state of the robot without driving it, and
-must keep running, or every other objective would go blind.
-
-Two details are worth knowing:
-
-- The switch is *not* delegated to the `FORCE_AUTO` strictness of the controller
-  manager. On StepIt each joint exports both a `position` and a `velocity`
-  command interface, so `joint_trajectory_controller` and `velocity_controller`
-  do not conflict: asking the controller manager to resolve the switch by itself
-  leaves **both** of them active. Measured on the robot, hence the explicit list
-  and stop.
-- The strictness used is `best_effort`, so activating the controller that is
-  already running is not an error. An unknown controller still is, and because
-  the controller manager applies a switch atomically, the running controller
-  survives a command that could not be honoured.
+| Objective | What it does |
+|---|---|
+| [`OffsetJointsBy`](docs/OffsetJointsBy.md) | Moves joints **by** a signed offset, relative to where they are. |
+| [`MoveJointsTo`](docs/MoveJointsTo.md) | Moves joints **to** absolute positions. |
+| [`ActivateController`](docs/ActivateController.md) | Stops the controller driving the robot and activates another one. |
 
 ## Build and run
 
@@ -268,6 +162,8 @@ behaviors against a fake robot that publishes `/joint_states` and serves
    it in `commander_behaviors::registerNodes`. It is picked up automatically,
    because the whole package is loaded as one plugin.
 3. Add a test to `src/commander_tests`.
+4. Document its parameters in `docs/<ObjectiveName>.md` and add it to the
+   [Objectives](#objectives) table.
 
 The three objectives shipped here, `OffsetJointsBy`, `MoveJointsTo` and
 `ActivateController`, are built from five behaviors and show every shape a
