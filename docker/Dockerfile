@@ -39,6 +39,7 @@ RUN apt-get install -y --no-install-recommends ros-jazzy-control-msgs
 RUN apt-get install -y --no-install-recommends ros-jazzy-sensor-msgs
 RUN apt-get install -y --no-install-recommends ros-jazzy-trajectory-msgs
 RUN apt-get install -y --no-install-recommends ros-jazzy-controller-manager-msgs
+RUN apt-get install -y --no-install-recommends ros-jazzy-rosbridge-suite   # So that web apps, e.g. the behavior editor, can run objectives.
 
 # BehaviorTree.CPP and the dependencies of BehaviorTree.ROS2, which is not
 # released as a Debian package and is therefore vendored into the workspace

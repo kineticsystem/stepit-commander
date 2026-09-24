@@ -18,12 +18,21 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 # THE SOFTWARE.
 
-"""Start the commander action server."""
+"""
+Start the commander action server.
+
+With rosbridge:=true, also start rosbridge on port rosbridge_port (default
+9090), so that web applications such as the behavior editor can run
+objectives over a WebSocket.
+"""
 
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import IfCondition
+from launch.launch_description_sources import AnyLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
-from launch.substitutions import PathJoinSubstitution
 
 
 def generate_launch_description():
@@ -39,4 +48,33 @@ def generate_launch_description():
         parameters=[parameters],
     )
 
-    return LaunchDescription([stepit_server])
+    rosbridge = IncludeLaunchDescription(
+        AnyLaunchDescriptionSource(
+            PathJoinSubstitution(
+                [
+                    FindPackageShare("rosbridge_server"),
+                    "launch",
+                    "rosbridge_websocket_launch.xml",
+                ]
+            )
+        ),
+        launch_arguments={"port": LaunchConfiguration("rosbridge_port")}.items(),
+        condition=IfCondition(LaunchConfiguration("rosbridge")),
+    )
+
+    return LaunchDescription(
+        [
+            DeclareLaunchArgument(
+                "rosbridge",
+                default_value="false",
+                description="Start rosbridge, to run objectives from web applications",
+            ),
+            DeclareLaunchArgument(
+                "rosbridge_port",
+                default_value="9090",
+                description="The WebSocket port of rosbridge",
+            ),
+            stepit_server,
+            rosbridge,
+        ]
+    )
