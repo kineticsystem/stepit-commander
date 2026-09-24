@@ -83,6 +83,7 @@ the objective, i.e. after the `target_tree` of the command:
 | [`OffsetJointsBy`](docs/OffsetJointsBy.md) | Moves joints **by** a signed offset, relative to where they are. |
 | [`MoveJointsTo`](docs/MoveJointsTo.md) | Moves joints **to** absolute positions. |
 | [`ActivateController`](docs/ActivateController.md) | Stops the controller driving the robot and activates another one. |
+| [`SpinTest`](docs/SpinTest.md) | Hardware test: joint *k* turns *k* times clockwise at full speed, then all return home. |
 
 ## Build and run
 
@@ -174,7 +175,7 @@ behaviors against a fake robot that publishes `/joint_states` and serves
 4. Document its parameters in `docs/<ObjectiveName>.md` and add it to the
    [Objectives](#objectives) table.
 
-The three objectives shipped here, `OffsetJointsBy`, `MoveJointsTo` and
+The three general-purpose objectives shipped here, `OffsetJointsBy`, `MoveJointsTo` and
 `ActivateController`, are built from five behaviors and show every shape a
 behavior can take: a ROS action client (`FollowJointTrajectory`), service
 clients (`GetActiveControllers`, `SwitchController`), a subscriber

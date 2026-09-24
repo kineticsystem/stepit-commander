@@ -31,13 +31,13 @@
       <GetActiveControllers _description="Lists the controllers driving the robot, except the ones about to be activated: these are the ones to stop."
                             service_name="/controller_manager/list_controllers"
                             exclude="{controllers}"
-                            active_controllers="{controllers_to_stop}"/>
+                            active_controllers="{active_controllers}"/>
 
       <!-- Stop them and start the requested ones, in one control cycle. -->
       <SwitchController _description="Stops the other controllers and starts the requested ones in one control cycle; one already running is left alone."
                         service_name="/controller_manager/switch_controller"
                         activate="{controllers}"
-                        deactivate="{controllers_to_stop}"
+                        deactivate="{active_controllers}"
                         strictness="best_effort"/>
 
     </Sequence>
