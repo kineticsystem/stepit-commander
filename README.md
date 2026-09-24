@@ -134,6 +134,14 @@ ros2 action send_goal /commander/execute_objective \
     payload: '{joints: [joint1, joint3], offset: -6.28, duration: 4.0}'}"
 ```
 
+To run objectives from a web application, such as the
+[behavior editor](https://github.com/kineticsystem/behavior-editor), also start
+rosbridge, which listens on port 9090 (change it with `rosbridge_port:=<port>`):
+
+```bash
+ros2 launch stepit_server commander.launch.py rosbridge:=true
+```
+
 The running tree can be inspected with [Groot2](https://www.behaviortree.dev/groot),
 which connects to port 1667.
 

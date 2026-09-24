@@ -4,6 +4,17 @@
   Hardware test: joint k turns k times clockwise, then every joint returns to
   where it started. OffsetJointPositions applies one offset to all its joints,
   so the turns are built in stages: each stage turns joints k..5 once more.
+  Every move keeps a margin below the acceleration limit of stepit, 12.57 rad/s²
+  (2 turns/s²): at the limit itself motors 1 and 2 lose steps, and being open
+  loop, nothing notices. FollowJointTrajectory moves along a cubic from rest to
+  rest, so a move of d radians in T seconds peaks at 6·d/T² in acceleration and
+  1.5·d/T in speed. At half the limit, 6.28 rad/s², that gives T = √(6·d/6.28):
+  2.5 s for one turn and 5.5 s for joint 5's five turns back, well below the
+  18.85 rad/s speed limit (8.6 rad/s at most).
+  The stages follow each other without a pause. stepit's trajectory controller
+  ends a move only once every joint is within 0.01 rad of its target, so the
+  next stage reads where the joints really are, and it starts each move from
+  the last command (interpolate_from_desired_state), so no joint overshoots.
     ros2 action send_goal /commander/execute_objective \
       btcpp_ros2_interfaces/action/ExecuteTree "{target_tree: SpinTest, payload: ''}"
 -->
@@ -25,25 +36,25 @@
         </Fallback>
       </RetryUntilSuccessful>
       <OffsetJointPositions _description="Subtracts one full turn (2π) from the current positions: a clockwise turn." offset="-6.283185307179586" current_positions="{home}" target_positions="{target}"/>
-      <FollowJointTrajectory _description="Turns joints 1 to 5 one full turn clockwise in 3.5 s, the fastest the 3.14 rad/s² acceleration limit allows." action_name="/joint_trajectory_controller/follow_joint_trajectory" joint_names="joint1;joint2;joint3;joint4;joint5" positions="{target}" duration="3.5"/>
+      <FollowJointTrajectory _description="Turns joints 1 to 5 one full turn clockwise in 2.5 s, at half the acceleration limit of stepit: faster, motors 1 and 2 lose steps." action_name="/joint_trajectory_controller/follow_joint_trajectory" joint_names="joint1;joint2;joint3;joint4;joint5" positions="{target}" duration="2.5"/>
       <!-- Stage 2: joints 2 to 5 turn once more clockwise. -->
       <GetJointPositions _description="Reads where joints 2 to 5 are now, from /joint_states." topic_name="/joint_states" joint_names="joint2;joint3;joint4;joint5" positions="{current}"/>
       <OffsetJointPositions _description="Subtracts one full turn (2π) from the current positions: a clockwise turn." offset="-6.283185307179586" current_positions="{current}" target_positions="{target}"/>
-      <FollowJointTrajectory _description="Turns joints 2 to 5 one full turn clockwise in 3.5 s, the fastest the 3.14 rad/s² acceleration limit allows." action_name="/joint_trajectory_controller/follow_joint_trajectory" joint_names="joint2;joint3;joint4;joint5" positions="{target}" duration="3.5"/>
+      <FollowJointTrajectory _description="Turns joints 2 to 5 one full turn clockwise in 2.5 s, at half the acceleration limit of stepit: faster, motors 1 and 2 lose steps." action_name="/joint_trajectory_controller/follow_joint_trajectory" joint_names="joint2;joint3;joint4;joint5" positions="{target}" duration="2.5"/>
       <!-- Stage 3: joints 3 to 5 turn once more clockwise. -->
       <GetJointPositions _description="Reads where joints 3 to 5 are now, from /joint_states." topic_name="/joint_states" joint_names="joint3;joint4;joint5" positions="{current}"/>
       <OffsetJointPositions _description="Subtracts one full turn (2π) from the current positions: a clockwise turn." offset="-6.283185307179586" current_positions="{current}" target_positions="{target}"/>
-      <FollowJointTrajectory _description="Turns joints 3 to 5 one full turn clockwise in 3.5 s, the fastest the 3.14 rad/s² acceleration limit allows." action_name="/joint_trajectory_controller/follow_joint_trajectory" joint_names="joint3;joint4;joint5" positions="{target}" duration="3.5"/>
+      <FollowJointTrajectory _description="Turns joints 3 to 5 one full turn clockwise in 2.5 s, at half the acceleration limit of stepit: faster, motors 1 and 2 lose steps." action_name="/joint_trajectory_controller/follow_joint_trajectory" joint_names="joint3;joint4;joint5" positions="{target}" duration="2.5"/>
       <!-- Stage 4: joints 4 to 5 turn once more clockwise. -->
       <GetJointPositions _description="Reads where joints 4 to 5 are now, from /joint_states." topic_name="/joint_states" joint_names="joint4;joint5" positions="{current}"/>
       <OffsetJointPositions _description="Subtracts one full turn (2π) from the current positions: a clockwise turn." offset="-6.283185307179586" current_positions="{current}" target_positions="{target}"/>
-      <FollowJointTrajectory _description="Turns joints 4 to 5 one full turn clockwise in 3.5 s, the fastest the 3.14 rad/s² acceleration limit allows." action_name="/joint_trajectory_controller/follow_joint_trajectory" joint_names="joint4;joint5" positions="{target}" duration="3.5"/>
+      <FollowJointTrajectory _description="Turns joints 4 to 5 one full turn clockwise in 2.5 s, at half the acceleration limit of stepit: faster, motors 1 and 2 lose steps." action_name="/joint_trajectory_controller/follow_joint_trajectory" joint_names="joint4;joint5" positions="{target}" duration="2.5"/>
       <!-- Stage 5: joint 5 turn once more clockwise. -->
       <GetJointPositions _description="Reads where joint 5 are now, from /joint_states." topic_name="/joint_states" joint_names="joint5" positions="{current}"/>
       <OffsetJointPositions _description="Subtracts one full turn (2π) from the current positions: a clockwise turn." offset="-6.283185307179586" current_positions="{current}" target_positions="{target}"/>
-      <FollowJointTrajectory _description="Turns joint 5 one full turn clockwise in 3.5 s, the fastest the 3.14 rad/s² acceleration limit allows." action_name="/joint_trajectory_controller/follow_joint_trajectory" joint_names="joint5" positions="{target}" duration="3.5"/>
+      <FollowJointTrajectory _description="Turns joint 5 one full turn clockwise in 2.5 s, at half the acceleration limit of stepit: faster, motors 1 and 2 lose steps." action_name="/joint_trajectory_controller/follow_joint_trajectory" joint_names="joint5" positions="{target}" duration="2.5"/>
       <!-- Back to where we started, all joints together. -->
-      <FollowJointTrajectory _description="Returns every joint to its recorded start position in 8 s (joint 5 has 5 turns to undo)." action_name="/joint_trajectory_controller/follow_joint_trajectory" joint_names="joint1;joint2;joint3;joint4;joint5" positions="{home}" duration="8.0"/>
+      <FollowJointTrajectory _description="Returns every joint to its recorded start position in 5.5 s, at half the acceleration limit of stepit for joint 5, which has 5 turns to undo." action_name="/joint_trajectory_controller/follow_joint_trajectory" joint_names="joint1;joint2;joint3;joint4;joint5" positions="{home}" duration="5.5"/>
     </Sequence>
   </BehaviorTree>
 </root>
