@@ -18,14 +18,15 @@
 -->
 <root BTCPP_format="4" main_tree_to_execute="MoveJointsTo">
 
-  <BehaviorTree ID="MoveJointsTo">
+  <BehaviorTree ID="MoveJointsTo" _description="Moves one or more joints to absolute positions, with the trajectory controller.">
     <Sequence>
 
       <!-- The motion is sent to the trajectory controller, so make sure that
            this is the controller driving the robot, and no other. -->
       <SubTree ID="EnsureControllers" controllers="joint_trajectory_controller"/>
 
-      <FollowJointTrajectory action_name="/joint_trajectory_controller/follow_joint_trajectory"
+      <FollowJointTrajectory _description="Sends the joints straight to the requested positions, over the requested duration."
+                             action_name="/joint_trajectory_controller/follow_joint_trajectory"
                              joint_names="{@joints}"
                              positions="{@positions}"
                              duration="{@duration}"/>

@@ -21,7 +21,7 @@
 -->
 <root BTCPP_format="4" main_tree_to_execute="OffsetJointsBy">
 
-  <BehaviorTree ID="OffsetJointsBy">
+  <BehaviorTree ID="OffsetJointsBy" _description="Moves one or more joints by an offset from where they are when the objective starts.">
     <Sequence>
 
       <!-- The motion is sent to the trajectory controller, so make sure that
@@ -32,19 +32,22 @@
            first tick usually finds no message yet: retry a few times. -->
       <RetryUntilSuccessful num_attempts="10">
         <Delay delay_msec="200">
-          <GetJointPositions topic_name="/joint_states"
+          <GetJointPositions _description="Reads where the joints are now, from /joint_states."
+                             topic_name="/joint_states"
                              joint_names="{@joints}"
                              positions="{current_positions}"/>
         </Delay>
       </RetryUntilSuccessful>
 
       <!-- Turn the commanded offset into absolute joint targets. -->
-      <OffsetJointPositions offset="{@offset}"
+      <OffsetJointPositions _description="Adds the commanded offset to the current positions, giving the absolute targets."
+                            offset="{@offset}"
                             current_positions="{current_positions}"
                             target_positions="{target_positions}"/>
 
       <!-- Hand the targets over to the trajectory controller. -->
-      <FollowJointTrajectory action_name="/joint_trajectory_controller/follow_joint_trajectory"
+      <FollowJointTrajectory _description="Moves the joints to the computed targets, over the requested duration."
+                             action_name="/joint_trajectory_controller/follow_joint_trajectory"
                              joint_names="{@joints}"
                              positions="{target_positions}"
                              duration="{@duration}"/>

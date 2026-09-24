@@ -28,6 +28,7 @@ add_library(commander_behaviors SHARED
   src/follow_joint_trajectory.cpp
   src/get_active_controllers.cpp
   src/get_joint_positions.cpp
+  src/nodes_model.cpp
   src/offset_joint_positions.cpp
   src/ports.cpp
   src/register_nodes.cpp
@@ -56,6 +57,13 @@ target_compile_definitions(commander_behaviors_plugin PRIVATE BT_PLUGIN_EXPORT)
 target_link_libraries(commander_behaviors_plugin PRIVATE commander_behaviors)
 
 ######################################################
+# Writes the node models of the behaviors, for editors like Groot2:
+#   ros2 run commander_behaviors write_nodes_model <file>
+
+add_executable(write_nodes_model src/write_nodes_model.cpp)
+target_link_libraries(write_nodes_model PRIVATE commander_behaviors)
+
+######################################################
 # INSTALL
 
 install(DIRECTORY include/ DESTINATION include)
@@ -65,6 +73,8 @@ install(TARGETS commander_behaviors
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib
   RUNTIME DESTINATION bin)
+
+install(TARGETS write_nodes_model DESTINATION lib/${PROJECT_NAME})
 
 # Plugins are looked up by the server as "<package>/<subfolder>", relative to
 # the share directory of the package.

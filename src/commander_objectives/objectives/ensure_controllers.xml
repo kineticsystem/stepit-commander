@@ -23,17 +23,19 @@
 -->
 <root BTCPP_format="4">
 
-  <BehaviorTree ID="EnsureControllers">
+  <BehaviorTree ID="EnsureControllers" _description="Makes sure that exactly the given controllers are driving the robot, leaving broadcasters running.">
     <Sequence>
 
       <!-- Which controllers are driving the robot right now? The ones we are
            about to activate are left out: they must not be stopped. -->
-      <GetActiveControllers service_name="/controller_manager/list_controllers"
+      <GetActiveControllers _description="Lists the controllers driving the robot, except the ones about to be activated: these are the ones to stop."
+                            service_name="/controller_manager/list_controllers"
                             exclude="{controllers}"
-                            controllers="{controllers_to_stop}"/>
+                            active_controllers="{controllers_to_stop}"/>
 
       <!-- Stop them and start the requested ones, in one control cycle. -->
-      <SwitchController service_name="/controller_manager/switch_controller"
+      <SwitchController _description="Stops the other controllers and starts the requested ones in one control cycle; one already running is left alone."
+                        service_name="/controller_manager/switch_controller"
                         activate="{controllers}"
                         deactivate="{controllers_to_stop}"
                         strictness="best_effort"/>

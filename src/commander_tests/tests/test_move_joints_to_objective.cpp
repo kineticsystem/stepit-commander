@@ -69,7 +69,7 @@ protected:
     params.wait_for_server_timeout = std::chrono::milliseconds{ 2000 };
 
     commander_behaviors::registerNodes(factory_, params);
-    factory_.registerBehaviorTreeFromFile(treePath("subtrees", "ensure_controllers.xml").string());
+    factory_.registerBehaviorTreeFromFile(treePath("objectives", "ensure_controllers.xml").string());
     factory_.registerBehaviorTreeFromFile(treePath("objectives", "move_joints_to.xml").string());
   }
 

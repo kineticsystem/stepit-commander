@@ -39,6 +39,12 @@ if(BUILD_TESTING)
   ament_add_gtest(test_switch_controller tests/test_switch_controller.cpp)
   target_link_libraries(test_switch_controller commander_behaviors::commander_behaviors)
 
+  # The committed node models match the behaviors.
+  ament_add_gtest(test_nodes_model tests/test_nodes_model.cpp)
+  target_link_libraries(test_nodes_model commander_behaviors::commander_behaviors)
+  target_compile_definitions(test_nodes_model PRIVATE
+    NODES_MODEL_FILE="${CMAKE_CURRENT_SOURCE_DIR}/../commander_objectives/objectives/stepit_behaviors.xml")
+
   # The payload of a command.
   ament_add_gtest(test_payload tests/test_payload.cpp)
   target_link_libraries(test_payload commander_server::commander_server)

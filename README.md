@@ -34,7 +34,7 @@ Each package has one concern, and one only.
 
 | Package | Role |
 |---|---|
-| `commander_objectives` | The objectives and the subtrees they are built from: BehaviorTree XML files, no code. |
+| `commander_objectives` | The objectives and the subtrees they are built from: BehaviorTree XML files, no code. `objectives/stepit_behaviors.xml` describes the behaviors for editors such as Groot2. |
 | `commander_behaviors` | The behaviors the objectives are built from. The only place that knows the topics, actions and services of the robot. |
 | `commander_server` | The single action server, its parameters and its launch file. It knows nothing about the robot. |
 | `commander_tests` | Tests: the logic of the behaviors, the payload of a command, and the objectives run end to end against a fake robot. |
@@ -156,11 +156,20 @@ behaviors against a fake robot that publishes `/joint_states` and serves
 
 1. Write the XML in `src/commander_objectives/objectives`. Nothing else to do:
    the folder is already loaded by the server. A step that more than one
-   objective needs belongs in `src/commander_objectives/subtrees` instead, and
-   is called with `<SubTree ID="..."/>`.
+   objective needs goes in a tree of its own, in the same folder, called with
+   `<SubTree ID="..."/>`. Such a subtree takes its parameters from ports
+   (`{controllers}`), so each caller can pass its own; only the objective a
+   client asks for reads the payload (`{@controllers}`). See how
+   `ActivateController` forwards its payload to `EnsureControllers`.
 2. If it needs a new behavior, add it to `src/commander_behaviors` and register
    it in `commander_behaviors::registerNodes`. It is picked up automatically,
-   because the whole package is loaded as one plugin.
+   because the whole package is loaded as one plugin. Then regenerate the node
+   models that editors such as Groot2 read (`test_nodes_model` fails until you
+   do):
+
+   ```bash
+   ros2 run commander_behaviors write_nodes_model src/commander_objectives/objectives/stepit_behaviors.xml
+   ```
 3. Add a test to `src/commander_tests`.
 4. Document its parameters in `docs/<ObjectiveName>.md` and add it to the
    [Objectives](#objectives) table.

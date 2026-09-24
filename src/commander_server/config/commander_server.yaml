@@ -23,4 +23,3 @@
     # the objectives a client can ask for, and the subtrees they are built from.
     behavior_trees:
       - commander_objectives/objectives
-      - commander_objectives/subtrees

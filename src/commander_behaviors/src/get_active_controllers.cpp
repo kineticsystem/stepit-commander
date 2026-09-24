@@ -37,7 +37,7 @@ BT::PortsList GetActiveControllers::providedPorts()
 {
   return providedBasicPorts({
       BT::InputPort<std::vector<std::string>>("exclude", "controllers to leave out of the result"),
-      BT::OutputPort<std::vector<std::string>>("controllers", "active controllers that own a command interface"),
+      BT::OutputPort<std::vector<std::string>>("active_controllers", "active controllers that own a command interface"),
   });
 }
 
@@ -67,7 +67,7 @@ BT::NodeStatus GetActiveControllers::onResponseReceived(const Response::SharedPt
 
   RCLCPP_INFO(logger(), "%s: %zu controller(s) are driving the robot", name().c_str(), controllers.size());
 
-  setOutput("controllers", controllers);
+  setOutput("active_controllers", controllers);
 
   return BT::NodeStatus::SUCCESS;
 }

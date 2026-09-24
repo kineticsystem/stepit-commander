@@ -18,7 +18,7 @@
 -->
 <root BTCPP_format="4" main_tree_to_execute="ActivateController">
 
-  <BehaviorTree ID="ActivateController">
+  <BehaviorTree ID="ActivateController" _description="Stops whichever controllers are driving the robot and activates the requested ones instead.">
     <SubTree ID="EnsureControllers" controllers="{@controllers}"/>
   </BehaviorTree>
 
