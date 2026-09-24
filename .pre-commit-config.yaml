@@ -63,14 +63,14 @@ repos:
         description: Check source files for copyright headers.
         entry: ament_copyright
         language: system
-        files: ^src/(commander_behaviors|commander_objectives|commander_server|commander_tests)/.*\.(c|cc|cxx|cpp|h|hpp|hxx|py)$
+        files: ^src/(stepit_behaviors|stepit_objectives|stepit_server|stepit_tests)/.*\.(c|cc|cxx|cpp|h|hpp|hxx|py)$
 
       - id: ament_lint_cmake
         name: ament_lint_cmake
         description: Lint CMakeLists.txt files.
         entry: ament_lint_cmake
         language: system
-        files: ^src/(commander_behaviors|commander_objectives|commander_server|commander_tests)/.*CMakeLists\.txt$
+        files: ^src/(stepit_behaviors|stepit_objectives|stepit_server|stepit_tests)/.*CMakeLists\.txt$
 
       - id: ament_cpplint
         name: ament_cpplint
@@ -82,4 +82,4 @@ repos:
         # its C++ headers that way, e.g. behaviortree_cpp/bt_factory.h.
         args:
           ["--linelength=121", "--filter=-whitespace/newline,-build/include_order"]
-        files: ^src/(commander_behaviors|commander_objectives|commander_server|commander_tests)/.*\.(c|cc|cxx|cpp|h|hpp|hxx)$
+        files: ^src/(stepit_behaviors|stepit_objectives|stepit_server|stepit_tests)/.*\.(c|cc|cxx|cpp|h|hpp|hxx)$

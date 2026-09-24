@@ -53,7 +53,7 @@ Inside the container, the repo is bind-mounted at `~/ws`, so every package under
 update    # only once: rosdep install
 build
 source ~/ws/install/setup.bash
-ros2 launch commander_server commander.launch.py
+ros2 launch stepit_server commander.launch.py
 ```
 
 Run the tests with:

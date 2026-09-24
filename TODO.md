@@ -171,7 +171,7 @@ runs until the client cancels. Wrapping `FollowJointTrajectory` in the built-in
 ### 8. Scalars and lists are not symmetric
 
 `{controllers: velocity_controller}` and `{controllers: [velocity_controller]}`
-are both accepted, because those ports go through `commander_behaviors::getNames`.
+are both accepted, because those ports go through `stepit_behaviors::getNames`.
 `joints` and `positions` must always be lists: `{joints: joint1, offset: -1.0}`
 fails. Making them symmetric means routing `FollowJointTrajectory`'s ports
 through `getNames` and adding a numeric twin of it. Small, but it is new API
@@ -205,7 +205,7 @@ This repository has none, so nothing checks a pull request. The hooks and
 
 ### 12. Two servers collide on the Groot2 port
 
-Running a second `commander_server` makes every goal fail with
+Running a second `stepit_server` makes every goal fail with
 `Behavior Tree exception: Address already in use`, because both try to publish
 Groot2 on port 1667. Worth knowing before debugging the tree itself.
 

@@ -1,0 +1,25 @@
+# Parameters of the commander action server. The wildcard '/**' makes them
+# independent of the name the node is launched with.
+/**:
+  ros__parameters:
+
+    # Objectives are requested through this action.
+    action_name: "commander/execute_objective"
+
+    # How often the behavior tree is ticked, in Hz.
+    tick_frequency: 100
+
+    # Port the tree state is published on, for Groot2.
+    groot2_port: 1667
+
+    # How long a behavior waits for its action server or service, in ms.
+    ros_plugins_timeout: 2000
+
+    # Folders, given as "package_name/subfolder", holding the behaviors to load.
+    plugins:
+      - stepit_behaviors/bt_plugins
+
+    # Folders, given as "package_name/subfolder", holding the trees to load:
+    # the objectives a client can ask for, and the subtrees they are built from.
+    behavior_trees:
+      - stepit_objectives/objectives

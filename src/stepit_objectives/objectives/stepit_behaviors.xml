@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The behaviors of stepit_behaviors, for editors that cannot load the plugin.
+
+  Generated: do not edit. After changing a behavior, regenerate it from the
+  workspace root with
+
+    ros2 run stepit_behaviors write_nodes_model src/stepit_objectives/objectives/stepit_behaviors.xml
+-->
+<root BTCPP_format="4">
+    <TreeNodesModel>
+        <Action ID="FollowJointTrajectory">
+            <input_port name="joint_names" type="std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt;">joints to move</input_port>
+            <input_port name="duration" type="double">time to reach the target, in seconds (default 5.0)</input_port>
+            <input_port name="positions" type="std::vector&lt;double, std::allocator&lt;double&gt; &gt;">absolute target positions, in radians</input_port>
+            <input_port name="action_name" type="std::string" default="">Action server name</input_port>
+        </Action>
+        <Action ID="GetActiveControllers">
+            <input_port name="exclude" type="std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt;">controllers to leave out of the result</input_port>
+            <output_port name="active_controllers" type="std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt;">active controllers that own a command interface</output_port>
+            <input_port name="service_name" type="std::string" default="">Service name</input_port>
+        </Action>
+        <Condition ID="GetJointPositions">
+            <input_port name="joint_names" type="std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt;">joints to read</input_port>
+            <output_port name="positions" type="std::vector&lt;double, std::allocator&lt;double&gt; &gt;">current joint positions, in radians</output_port>
+            <input_port name="topic_name" type="std::string" default="__default__placeholder__">Topic name</input_port>
+        </Condition>
+        <Action ID="OffsetJointPositions">
+            <output_port name="target_positions" type="std::vector&lt;double, std::allocator&lt;double&gt; &gt;">absolute joint positions to reach</output_port>
+            <input_port name="current_positions" type="std::vector&lt;double, std::allocator&lt;double&gt; &gt;">joint positions the motion starts from</input_port>
+            <input_port name="offset" type="double">signed displacement, in radians: it is negative when the motor turns clockwise</input_port>
+        </Action>
+        <Action ID="SwitchController">
+            <input_port name="activate" type="std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt;">controllers to activate</input_port>
+            <input_port name="deactivate" type="std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt;">controllers to deactivate</input_port>
+            <input_port name="strictness" type="std::string" default="best_effort">best_effort, strict, auto or force_auto</input_port>
+            <input_port name="service_name" type="std::string" default="">Service name</input_port>
+        </Action>
+    </TreeNodesModel>
+</root>

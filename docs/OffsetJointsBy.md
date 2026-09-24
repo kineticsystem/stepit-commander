@@ -1,6 +1,6 @@
 # OffsetJointsBy
 
-[`offset_joints_by.xml`](../src/commander_objectives/objectives/offset_joints_by.xml)
+[`offset_joints_by.xml`](../src/stepit_objectives/objectives/offset_joints_by.xml)
 offsets one or more joints, at the same time, **relative** to the position they
 have when the objective starts. It is the relative counterpart of
 [`MoveJointsTo`](MoveJointsTo.md): the two names say how they differ, *by* an amount against *to* a

@@ -1,6 +1,6 @@
 # ActivateController
 
-[`activate_controller.xml`](../src/commander_objectives/objectives/activate_controller.xml)
+[`activate_controller.xml`](../src/stepit_objectives/objectives/activate_controller.xml)
 stops whichever controller is currently driving the robot and activates the
 requested one instead.
 
