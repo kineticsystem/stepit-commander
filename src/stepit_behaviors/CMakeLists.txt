@@ -33,6 +33,7 @@ add_library(stepit_behaviors SHARED
   src/cubic_trajectory.cpp
   src/ports.cpp
   src/register_nodes.cpp
+  src/steps.cpp
   src/switch_controller.cpp
   src/trapezoidal_trajectory.cpp)
 

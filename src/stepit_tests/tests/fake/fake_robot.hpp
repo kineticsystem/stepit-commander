@@ -96,6 +96,13 @@ public:
     return last_trajectory_;
   }
 
+  /// @brief Every trajectory the robot was asked to execute, in order.
+  std::vector<trajectory_msgs::msg::JointTrajectory> trajectories() const
+  {
+    const std::lock_guard<std::mutex> lock{ mutex_ };
+    return trajectories_;
+  }
+
   /// @brief Make the next trajectory fail, as a controller in error would do.
   void failNextTrajectory()
   {
@@ -108,6 +115,7 @@ private:
     {
       const std::lock_guard<std::mutex> lock{ mutex_ };
       last_trajectory_ = goal_handle->get_goal()->trajectory;
+      trajectories_.push_back(*last_trajectory_);
     }
 
     auto result = std::make_shared<FollowJointTrajectory::Result>();
@@ -132,6 +140,7 @@ private:
 
   mutable std::mutex mutex_;
   std::optional<trajectory_msgs::msg::JointTrajectory> last_trajectory_;
+  std::vector<trajectory_msgs::msg::JointTrajectory> trajectories_;
   std::atomic_bool fail_{ false };
 
   rclcpp::executors::SingleThreadedExecutor executor_;

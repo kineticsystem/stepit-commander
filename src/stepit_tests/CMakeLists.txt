@@ -31,6 +31,11 @@ if(BUILD_TESTING)
   target_link_libraries(test_offset_vector
     stepit_behaviors::stepit_behaviors)
 
+  # Looping over values, e.g. positions.
+  ament_add_gtest(test_steps tests/test_steps.cpp)
+  target_link_libraries(test_steps
+    stepit_behaviors::stepit_behaviors)
+
   # The trajectory to a set of joint positions.
   ament_add_gtest(test_cubic_trajectory tests/test_cubic_trajectory.cpp)
   target_link_libraries(test_cubic_trajectory
@@ -91,6 +96,21 @@ if(BUILD_TESTING)
     tests/test_move_joints_to_objective.cpp)
   target_include_directories(test_move_joints_to_objective PRIVATE tests)
   target_link_libraries(test_move_joints_to_objective
+    ament_index_cpp::ament_index_cpp
+    stepit_behaviors::stepit_behaviors
+    stepit_server::stepit_server
+    rclcpp::rclcpp
+    rclcpp_action::rclcpp_action
+    ${control_msgs_TARGETS}
+    ${controller_manager_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${trajectory_msgs_TARGETS})
+
+  ament_add_gtest(test_stack_objective
+    tests/test_stack_objective.cpp
+    TIMEOUT 300)
+  target_include_directories(test_stack_objective PRIVATE tests)
+  target_link_libraries(test_stack_objective
     ament_index_cpp::ament_index_cpp
     stepit_behaviors::stepit_behaviors
     stepit_server::stepit_server

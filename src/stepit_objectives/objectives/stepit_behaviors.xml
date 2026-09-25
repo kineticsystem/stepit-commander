@@ -35,6 +35,14 @@
             <input_port name="offset" type="BT::AnyTypeAllowed">a number added to every element, or a list with one per element</input_port>
             <input_port name="input" type="std::vector&lt;double, std::allocator&lt;double&gt; &gt;">the numbers to offset</input_port>
         </Action>
+        <Decorator ID="Steps">
+            <output_port name="index" type="int">the number of this iteration, from 0</output_port>
+            <output_port name="value" type="std::vector&lt;double, std::allocator&lt;double&gt; &gt;">the value of this iteration, always a list</output_port>
+            <input_port name="values" type="BT::AnyTypeAllowed" default="">instead of start, end and count: the values, one number per iteration</input_port>
+            <input_port name="count" type="BT::AnyTypeAllowed" default="">how many values from start to end, both included</input_port>
+            <input_port name="end" type="BT::AnyTypeAllowed" default="">the last value, of the same length as the first</input_port>
+            <input_port name="start" type="BT::AnyTypeAllowed" default="">the first value: a number, or a list with one per joint</input_port>
+        </Decorator>
         <Action ID="SwitchController">
             <input_port name="activate" type="std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt;">controllers to activate</input_port>
             <input_port name="deactivate" type="std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt;">controllers to deactivate</input_port>

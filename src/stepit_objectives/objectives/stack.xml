@@ -1,0 +1,70 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Objective: Stack
+
+  Steps joint 1 and joint 2 through a grid, e.g. to take a photo at every
+  position of a photo stack: joint 1 goes from where it is to 5 turns further
+  in 10 steps, and at each of its 11 positions joint 2 does the same, starting
+  again from where it was at the start. 121 positions in all, 11 × 11.
+
+    ros2 action send_goal /commander/execute_objective \
+      btcpp_ros2_interfaces/action/ExecuteTree "{target_tree: Stack, payload: ''}"
+
+  Every move commands all five joints: joints 3, 4 and 5 are held where they
+  were at the start, and joint 2 goes back to its start with the next step of
+  joint 1. 5 turns is +10π rad, counter-clockwise: clockwise turns are negative,
+  as in SpinTest. Each move is a trapezoid at the limits of TrapezoidalTrajectory.
+  The photo is not taken yet: its place is marked in the inner loop.
+-->
+<root BTCPP_format="4" main_tree_to_execute="Stack">
+  <BehaviorTree ID="Stack" _description="Steps joint 1 and joint 2 through a grid of 11 × 11 positions, 5 turns in 10 steps each, from where they are; joints 3, 4 and 5 stay in place.">
+    <Sequence>
+      <SubTree ID="EnsureControllers" controllers="joint_trajectory_controller"/>
+      <GetJointPositions _description="Records where every joint starts: the grid starts here, and joints 3, 4 and 5 stay here."
+                         topic_name="/joint_states"
+                         joint_names="joint1;joint2;joint3;joint4;joint5"
+                         positions="{home}"/>
+      <OffsetVector _description="Where joint 1 ends: 5 turns from its start, the other joints unchanged."
+                    input="{home}"
+                    offset="31.41592653589793;0;0;0;0"
+                    output="{joint1_end}"/>
+      <!-- Joint 1: 11 positions, 10 steps. -->
+      <Steps _description="Joint 1 from its start to 5 turns further, in 10 steps."
+             start="{home}" end="{joint1_end}" count="11" value="{row}" index="{row_index}">
+        <Sequence>
+          <GetJointPositions topic_name="/joint_states"
+                             joint_names="joint1;joint2;joint3;joint4;joint5"
+                             positions="{here}"/>
+          <TrapezoidalTrajectory _description="Moves joint 1 to its next step, and joint 2 back to its start."
+                                 joint_names="joint1;joint2;joint3;joint4;joint5"
+                                 start_positions="{here}"
+                                 positions="{row}"
+                                 trajectory="{trajectory}"/>
+          <FollowJointTrajectory action_name="/joint_trajectory_controller/follow_joint_trajectory"
+                                 trajectory="{trajectory}"/>
+          <OffsetVector _description="Where joint 2 ends in this row: 5 turns from its start."
+                        input="{row}"
+                        offset="0;31.41592653589793;0;0;0"
+                        output="{row_end}"/>
+          <!-- Joint 2: 11 positions, 10 steps, from its start every time. -->
+          <Steps _description="Joint 2 from its start to 5 turns further, in 10 steps."
+                 start="{row}" end="{row_end}" count="11" value="{target}" index="{shot}">
+            <Sequence>
+              <GetJointPositions topic_name="/joint_states"
+                                 joint_names="joint1;joint2;joint3;joint4;joint5"
+                                 positions="{here}"/>
+              <TrapezoidalTrajectory _description="Moves joint 2 to its next step."
+                                     joint_names="joint1;joint2;joint3;joint4;joint5"
+                                     start_positions="{here}"
+                                     positions="{target}"
+                                     trajectory="{trajectory}"/>
+              <FollowJointTrajectory action_name="/joint_trajectory_controller/follow_joint_trajectory"
+                                     trajectory="{trajectory}"/>
+              <!-- Take the photo here. -->
+            </Sequence>
+          </Steps>
+        </Sequence>
+      </Steps>
+    </Sequence>
+  </BehaviorTree>
+</root>
