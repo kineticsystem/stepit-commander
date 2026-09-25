@@ -104,11 +104,29 @@ void CommanderServer::onTreeCreated(BT::Tree& tree)
   }
 
   logger_ = std::make_shared<BT::StdCoutLogger>(tree);
+  execution_status_ = std::make_unique<ExecutionStatus>(tree);
+  tick_status_ = BT::NodeStatus::IDLE;
+}
+
+std::optional<BT::NodeStatus> CommanderServer::onLoopAfterTick(BT::NodeStatus status)
+{
+  tick_status_ = status;
+  return std::nullopt;
+}
+
+std::optional<std::string> CommanderServer::onLoopFeedback()
+{
+  if (!execution_status_)
+  {
+    return std::nullopt;
+  }
+  return execution_status_->feedback(tick_status_ != BT::NodeStatus::RUNNING);
 }
 
 std::optional<std::string> CommanderServer::onTreeExecutionCompleted(BT::NodeStatus, bool)
 {
   logger_.reset();
+  execution_status_.reset();
   return std::nullopt;
 }
 

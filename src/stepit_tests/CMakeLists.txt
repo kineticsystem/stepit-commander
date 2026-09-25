@@ -78,6 +78,10 @@ if(BUILD_TESTING)
   ament_add_gtest(test_tree_loader tests/test_tree_loader.cpp)
   target_link_libraries(test_tree_loader stepit_server::stepit_server)
 
+  # The status of the running tree, as feedback for a client.
+  ament_add_gtest(test_execution_status tests/test_execution_status.cpp)
+  target_link_libraries(test_execution_status stepit_server::stepit_server)
+
   # The payload of a command.
   ament_add_gtest(test_payload tests/test_payload.cpp)
   target_link_libraries(test_payload stepit_server::stepit_server)

@@ -28,6 +28,7 @@
 #include <behaviortree_cpp/loggers/bt_cout_logger.h>
 #include <behaviortree_ros2/tree_execution_server.hpp>
 
+#include "stepit_server/execution_status.hpp"
 #include "stepit_server/payload.hpp"
 #include "stepit_server/tree_loader.hpp"
 
@@ -59,6 +60,12 @@ protected:
   /// @brief Publish the parameters of the command into the global blackboard.
   void onTreeCreated(BT::Tree& tree) override;
 
+  /// @brief Remember whether the tick ended the tree, for onLoopFeedback.
+  std::optional<BT::NodeStatus> onLoopAfterTick(BT::NodeStatus status) override;
+
+  /// @brief The status of the nodes that changed, see ExecutionStatus.
+  std::optional<std::string> onLoopFeedback() override;
+
   std::optional<std::string> onTreeExecutionCompleted(BT::NodeStatus status, bool was_cancelled) override;
 
 private:
@@ -71,6 +78,9 @@ private:
   std::vector<std::string> written_keys_;
   std::shared_ptr<BT::StdCoutLogger> logger_;
   TreeLoader tree_loader_;
+  std::unique_ptr<ExecutionStatus> execution_status_;
+  /// @brief The status of the last tick.
+  BT::NodeStatus tick_status_ = BT::NodeStatus::IDLE;
 };
 
 }  // namespace stepit_server
