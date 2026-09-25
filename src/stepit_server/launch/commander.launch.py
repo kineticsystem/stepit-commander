@@ -19,11 +19,9 @@
 # THE SOFTWARE.
 
 """
-Start the commander action server.
-
-With rosbridge:=true, also start rosbridge on port rosbridge_port (default
-9090), so that web applications such as the behavior editor can run
-objectives over a WebSocket.
+Start the commander action server, and rosbridge on port rosbridge_port
+(default 9090), so that web applications such as the behavior editor can run
+objectives over a WebSocket. Pass rosbridge:=false to leave rosbridge out.
 """
 
 from launch import LaunchDescription
@@ -66,7 +64,7 @@ def generate_launch_description():
         [
             DeclareLaunchArgument(
                 "rosbridge",
-                default_value="false",
+                default_value="true",
                 description="Start rosbridge, to run objectives from web applications",
             ),
             DeclareLaunchArgument(

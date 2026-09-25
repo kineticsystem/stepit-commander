@@ -11,7 +11,7 @@ objective and a **payload** holding its parameters to one action:
 ros2 action send_goal /commander/execute_objective \
   btcpp_ros2_interfaces/action/ExecuteTree \
   "{target_tree: OffsetJointsBy,
-    payload: '{joints: [joint1, joint3], offset: -6.28, duration: 4.0}'}"
+    payload: '{joints: [joint1, joint3], offset: -6.28}'}"
 ```
 
 The action server itself comes from [BehaviorTree.ROS2](https://github.com/BehaviorTree/BehaviorTree.ROS2)
@@ -34,7 +34,7 @@ Each package has one concern, and one only.
 
 | Package | Role |
 |---|---|
-| `stepit_objectives` | The objectives and the subtrees they are built from: BehaviorTree XML files, no code. `objectives/stepit_behaviors.xml` describes the behaviors for editors such as Groot2. |
+| `stepit_objectives` | The objectives and the subtrees they are built from: BehaviorTree XML files, no code. `objectives/stepit_behaviors.xml` describes the behaviors for editors such as the StepIt Editor. |
 | `stepit_behaviors` | The behaviors the objectives are built from. The only place that knows the topics, actions and services of the robot. |
 | `stepit_server` | The single action server, its parameters and its launch file. It knows nothing about the robot. |
 | `stepit_tests` | Tests: the logic of the behaviors, the payload of a command, and the objectives run end to end against a fake robot. |
@@ -64,14 +64,11 @@ without any further conversion:
 | Payload | Blackboard |
 |---|---|
 | `offset: -6.28` | `double` |
-| `duration: 3` | `double` |
+| `max_velocity: 3` | `double` |
 | `controllers: velocity_controller` | `std::string` |
 | `controllers: '5'` (quoted) | `std::string` |
 | `joints: [joint1, joint2]` | `std::vector<std::string>` |
 | `positions: [0.0, 1.5]` | `std::vector<double>` |
-
-
-
 
 ## Objectives
 
@@ -83,22 +80,14 @@ the objective, i.e. after the `target_tree` of the command:
 | [`OffsetJointsBy`](docs/OffsetJointsBy.md) | Moves joints **by** a signed offset, relative to where they are. |
 | [`MoveJointsTo`](docs/MoveJointsTo.md) | Moves joints **to** absolute positions. |
 | [`ActivateController`](docs/ActivateController.md) | Stops the controller driving the robot and activates another one. |
-| [`SpinTest`](docs/SpinTest.md) | Hardware test: joint *k* turns *k* times clockwise at full speed, then all return home. |
+| [`SpinTest`](docs/SpinTest.md) | Hardware test: joint *k* turns *k* times clockwise at 90% of the motors' limits, then all return home. |
 
 ## Build and run
-
-Everything is built and run inside a Docker container. From the root of the
-repo, create the image and the container (see [docker/README.md](docker/README.md)):
-
-```bash
-./docker/dock.sh commander-ros2 build
-./docker/dock.sh commander-ros2 start
-```
 
 Check out the repository including its submodules:
 
 ```bash
-git clone --recurse-submodules <this repo>
+git clone --recurse-submodules git@github.com:kineticsystem/stepit-commander.git
 ```
 
 If the `--recurse-submodules` switch was missed, the submodules can be cloned
@@ -106,6 +95,14 @@ afterwards with:
 
 ```bash
 git submodule update --init --recursive
+```
+
+Everything is built and run inside a Docker container. From the root of the
+repo, create the image and the container (see [docker/README.md](docker/README.md)):
+
+```bash
+./docker/dock.sh stepit-commander build
+./docker/dock.sh stepit-commander start
 ```
 
 Inside the container, install the dependencies and build:
@@ -131,19 +128,13 @@ source install/setup.bash
 ros2 action send_goal /commander/execute_objective \
   btcpp_ros2_interfaces/action/ExecuteTree \
   "{target_tree: OffsetJointsBy,
-    payload: '{joints: [joint1, joint3], offset: -6.28, duration: 4.0}'}"
+    payload: '{joints: [joint1, joint3], offset: -6.28}'}"
 ```
 
-To run objectives from a web application, such as the
-[behavior editor](https://github.com/kineticsystem/behavior-editor), also start
-rosbridge, which listens on port 9090 (change it with `rosbridge_port:=<port>`):
-
-```bash
-ros2 launch stepit_server commander.launch.py rosbridge:=true
-```
-
-The running tree can be inspected with [Groot2](https://www.behaviortree.dev/groot),
-which connects to port 1667.
+The commander also starts rosbridge, so that web applications such as the
+[StepIt Editor](https://github.com/kineticsystem/stepit-editor) can run
+objectives. It listens on port 9090: change it with `rosbridge_port:=<port>`,
+or leave rosbridge out with `rosbridge:=false`.
 
 ## Tests
 
@@ -157,9 +148,19 @@ or, for this project alone:
 colcon test --packages-select stepit_tests --event-handlers console_direct+
 ```
 
-`test_offset_joints_by_objective` runs the real objective XML and the real
-behaviors against a fake robot that publishes `/joint_states` and serves
-`FollowJointTrajectory`, so no hardware and no controller are needed.
+The objective tests, e.g. `test_offset_joints_by_objective`, run the real
+objective XML and the real behaviors against a fake robot that publishes
+`/joint_states` and serves `FollowJointTrajectory`, so no hardware and no
+controller are needed.
+
+> [!WARNING]
+> The fake robot uses the names of the real one. With the StepIt robot running
+> on the same network and ROS domain, the tests read its joint states, switch
+> its controllers and **move it**. Run them on a domain of their own:
+>
+> ```bash
+> ROS_DOMAIN_ID=77 ./bin/test.sh
+> ```
 
 ## Adding a new objective
 
@@ -173,8 +174,8 @@ behaviors against a fake robot that publishes `/joint_states` and serves
 2. If it needs a new behavior, add it to `src/stepit_behaviors` and register
    it in `stepit_behaviors::registerNodes`. It is picked up automatically,
    because the whole package is loaded as one plugin. Then regenerate the node
-   models that editors such as Groot2 read (`test_nodes_model` fails until you
-   do):
+   models that editors such as the StepIt Editor read (`test_nodes_model` fails
+   until you do):
 
    ```bash
    ros2 run stepit_behaviors write_nodes_model src/stepit_objectives/objectives/stepit_behaviors.xml
@@ -184,7 +185,22 @@ behaviors against a fake robot that publishes `/joint_states` and serves
    [Objectives](#objectives) table.
 
 The three general-purpose objectives shipped here, `OffsetJointsBy`, `MoveJointsTo` and
-`ActivateController`, are built from five behaviors and show every shape a
+`ActivateController`, are built from six behaviors and show every shape a
 behavior can take: a ROS action client (`FollowJointTrajectory`), service
 clients (`GetActiveControllers`, `SwitchController`), a subscriber
-(`GetJointPositions`) and pure logic (`OffsetJointPositions`).
+(`GetJointPositions`) and pure logic (`OffsetVector`, `TrapezoidalTrajectory`).
+
+Building a trajectory and following it are separate behaviors, and
+`FollowJointTrajectory` sends whatever trajectory it is given to the
+controller. Two nodes build one:
+
+- `CubicTrajectory`: a single waypoint, reached at rest after a given
+  duration. The controller joins it with a cubic, which reaches its peak
+  acceleration only at the start and the end, and its top speed only halfway.
+  No objective uses it; it is there for a move that must take a given time.
+- `TrapezoidalTrajectory`: as fast as the limits allow, 2.7 turns/s and
+  1.8 turns/s² by default, 90% of those of the StepIt motors: at 100% the
+  motors trail their commands and arrive late. Each joint accelerates at
+  the limit, cruises at top speed and brakes at the limit; all joints start and
+  stop together. It needs the positions the joints start from, e.g. from
+  `GetJointPositions`. Every objective that moves the robot uses it.

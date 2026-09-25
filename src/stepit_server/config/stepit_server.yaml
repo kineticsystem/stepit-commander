@@ -9,9 +9,6 @@
     # How often the behavior tree is ticked, in Hz.
     tick_frequency: 100
 
-    # Port the tree state is published on, for Groot2.
-    groot2_port: 1667
-
     # How long a behavior waits for its action server or service, in ms.
     ros_plugins_timeout: 2000
 

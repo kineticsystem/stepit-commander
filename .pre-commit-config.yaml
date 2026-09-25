@@ -56,7 +56,7 @@ repos:
 
       # The ament linters come from the ROS workspace, so they only run in a
       # shell where /opt/ros/jazzy/setup.bash has been sourced, i.e. inside the
-      # commander-ros2 container. On a host without ROS they are skipped:
+      # stepit-commander container. On a host without ROS they are skipped:
       # SKIP=ament_copyright,ament_lint_cmake,ament_cpplint git commit ...
       - id: ament_copyright
         name: ament_copyright

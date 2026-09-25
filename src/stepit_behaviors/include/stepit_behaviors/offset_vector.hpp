@@ -22,19 +22,27 @@
 
 #include <string>
 
+#include <behaviortree_cpp/action_node.h>
+
 namespace stepit_behaviors
 {
 
 /**
- * @brief The <TreeNodesModel> of every behavior of this package, as the complete
- * content of an XML file.
+ * @brief Adds an offset to every element of a vector of numbers.
  *
- * Editors such as the StepIt Editor cannot load the plugin, so they learn the
- * node types and their ports from this file instead. It is generated from the
- * real registration, ports added by behaviortree_ros2 included. The committed
- * copy is src/stepit_objectives/objectives/stepit_behaviors.xml, written by the
- * write_nodes_model program, and test_nodes_model checks it is up to date.
+ * The offset is either a single number, added to every element, or a list with
+ * one offset per element. Pure arithmetic: the node knows nothing about joints
+ * or motion. OffsetJointsBy uses it to turn the current joint positions and the
+ * commanded offsets into the positions to reach.
  */
-std::string nodesModel();
+class OffsetVector : public BT::SyncActionNode
+{
+public:
+  OffsetVector(const std::string& name, const BT::NodeConfig& config);
+
+  static BT::PortsList providedPorts();
+
+  BT::NodeStatus tick() override;
+};
 
 }  // namespace stepit_behaviors

@@ -4,7 +4,7 @@
 
 FROM ros:jazzy-ros-base
 
-LABEL name="develop:commander-ros2"
+LABEL name="develop:stepit-commander"
 
 RUN apt-get update
 

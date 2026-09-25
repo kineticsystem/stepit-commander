@@ -3,33 +3,49 @@
   Objective: MoveJointsTo
 
   Moves one or more joints to absolute positions, whatever position they are in
-  when the objective starts.
+  when the objective starts, as fast as the motors allow.
 
     ros2 action send_goal /commander/execute_objective \
       btcpp_ros2_interfaces/action/ExecuteTree \
       "{target_tree: MoveJointsTo,
-        payload: '{joints: [joint1, joint2], positions: [0.0, 1.57], duration: 3.0}'}"
+        payload: '{joints: [joint1, joint2], positions: [0.0, 1.57]}'}"
 
   This is the absolute counterpart of OffsetJointsBy: the positions are already
-  the targets, so neither the current state of the robot nor the sign convention
-  of a rotation are needed, and the objective goes straight to the controller.
+  the targets, so no offset nor sign convention of a rotation is needed. The
+  motion is a trapezoid: each joint accelerates at the limit, cruises at top
+  speed and brakes at the limit, all of them arriving together. Its shape
+  depends on the distance, so the objective reads where the joints are first.
 
-  The number of positions must match the number of joints.
+  The limits default to 90% of those of the StepIt motors, 2.7 turns/s and
+  1.8 turns/s²; max_velocity and max_acceleration change them, one for every
+  joint or one per joint. The number of positions must match the number of
+  joints.
 -->
 <root BTCPP_format="4" main_tree_to_execute="MoveJointsTo">
 
-  <BehaviorTree ID="MoveJointsTo" _description="Moves one or more joints to absolute positions, with the trajectory controller.">
+  <BehaviorTree ID="MoveJointsTo" _description="Moves one or more joints to absolute positions, as fast as the limits allow, with the trajectory controller.">
     <Sequence>
 
       <!-- The motion is sent to the trajectory controller, so make sure that
            this is the controller driving the robot, and no other. -->
       <SubTree ID="EnsureControllers" controllers="joint_trajectory_controller"/>
 
-      <FollowJointTrajectory _description="Sends the joints straight to the requested positions, over the requested duration."
-                             action_name="/joint_trajectory_controller/follow_joint_trajectory"
+      <!-- Where are we now? The trapezoid depends on the distance. -->
+      <GetJointPositions _description="Reads where the joints are now, from /joint_states."
+                         topic_name="/joint_states"
+                         joint_names="{@joints}"
+                         positions="{current_positions}"/>
+
+      <TrapezoidalTrajectory _description="Goes to the requested positions as fast as the limits allow: accelerate, cruise, brake."
                              joint_names="{@joints}"
+                             start_positions="{current_positions}"
                              positions="{@positions}"
-                             duration="{@duration}"/>
+                             max_velocity="{@max_velocity}"
+                             max_acceleration="{@max_acceleration}"
+                             trajectory="{trajectory}"/>
+      <FollowJointTrajectory _description="Sends the trajectory to the trajectory controller, and waits until the joints have followed it."
+                             action_name="/joint_trajectory_controller/follow_joint_trajectory"
+                             trajectory="{trajectory}"/>
 
     </Sequence>
   </BehaviorTree>

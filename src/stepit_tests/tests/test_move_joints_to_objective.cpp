@@ -22,6 +22,7 @@
 // stepit_objectives and runs it against a fake robot.
 
 #include <chrono>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -29,6 +30,8 @@
 
 #include <behaviortree_cpp/bt_factory.h>
 #include <stepit_behaviors/register_nodes.hpp>
+#include <stepit_behaviors/trapezoidal_trajectory.hpp>
+#include <rclcpp/duration.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 #include "fake/fake_controller_manager.hpp"
@@ -45,6 +48,11 @@ constexpr auto kObjective = "MoveJointsTo";
 
 const std::vector<std::string> kJointNames{ "joint1", "joint2", "joint3", "joint4", "joint5" };
 const std::vector<double> kJointPositions{ 0.5, 1.0, 0.0, -1.0, 2.0 };
+
+double seconds(const trajectory_msgs::msg::JointTrajectoryPoint& point)
+{
+  return rclcpp::Duration(point.time_from_start).seconds();
+}
 }  // namespace
 
 class MoveJointsToObjective : public testing::Test
@@ -87,22 +95,24 @@ protected:
 };
 
 // The positions are the targets: where the joints start from does not matter.
+// Joint 2 has the longer way, 0.57 rad from 1.0: too short to reach the top
+// speed, so the motion is a triangle at the motors' acceleration limit, and
+// joint 1 follows in proportion.
 TEST_F(MoveJointsToObjective, TheJointsAreSentToTheGivenPositions)
 {
-  ASSERT_EQ(runObjective(factory_, kObjective,
-                         "{joints: [joint1, joint2], positions: [0.0, 1.57], "
-                         "duration: 3.0}"),
+  ASSERT_EQ(runObjective(factory_, kObjective, "{joints: [joint1, joint2], positions: [0.0, 1.57]}"),
             BT::NodeStatus::SUCCESS);
 
   const auto trajectory = robot_->lastTrajectory();
   ASSERT_TRUE(trajectory.has_value());
   EXPECT_EQ(trajectory->joint_names, (std::vector<std::string>{ "joint1", "joint2" }));
 
-  ASSERT_EQ(trajectory->points.size(), 1u);
-  const auto& point = trajectory->points.front();
-  EXPECT_EQ(point.positions, (std::vector<double>{ 0.0, 1.57 }));
-  EXPECT_EQ(point.velocities, (std::vector<double>{ 0.0, 0.0 }));
-  EXPECT_EQ(point.time_from_start.sec, 3);
+  ASSERT_EQ(trajectory->points.size(), 2u);
+  const auto& arrival = trajectory->points.back();
+  EXPECT_NEAR(arrival.positions[0], 0.0, 1e-9);
+  EXPECT_NEAR(arrival.positions[1], 1.57, 1e-9);
+  EXPECT_EQ(arrival.velocities, (std::vector<double>{ 0.0, 0.0 }));
+  EXPECT_NEAR(seconds(arrival), 2.0 * std::sqrt(0.57 / stepit_behaviors::TrapezoidalTrajectory::kMaxAcceleration), 1e-6);
 }
 
 TEST_F(MoveJointsToObjective, NegativePositionsAreTargetsLikeAnyOther)
@@ -111,10 +121,24 @@ TEST_F(MoveJointsToObjective, NegativePositionsAreTargetsLikeAnyOther)
 
   const auto trajectory = robot_->lastTrajectory();
   ASSERT_TRUE(trajectory.has_value());
-  ASSERT_EQ(trajectory->points.size(), 1u);
-  EXPECT_EQ(trajectory->points.front().positions, (std::vector<double>{ -2.5 }));
-  // The duration is optional and falls back to its default.
-  EXPECT_EQ(trajectory->points.front().time_from_start.sec, 5);
+  ASSERT_FALSE(trajectory->points.empty());
+  EXPECT_NEAR(trajectory->points.back().positions[0], -2.5, 1e-9);
+}
+
+// Lower limits in the payload slow the motion down: 3 rad at 1 rad/s and
+// 1 rad/s² is 1 s accelerating over 0.5 rad, 2 s cruising over 2 rad, and 1 s
+// braking over the last 0.5 rad.
+TEST_F(MoveJointsToObjective, ThePayloadCanLowerTheLimits)
+{
+  ASSERT_EQ(runObjective(factory_, kObjective,
+                         "{joints: [joint1], positions: [3.5], max_velocity: 1.0, max_acceleration: 1.0}"),
+            BT::NodeStatus::SUCCESS);
+
+  const auto trajectory = robot_->lastTrajectory();
+  ASSERT_TRUE(trajectory.has_value());
+  ASSERT_EQ(trajectory->points.size(), 3u);
+  EXPECT_NEAR(trajectory->points[0].velocities[0], 1.0, 1e-9);
+  EXPECT_NEAR(seconds(trajectory->points.back()), 4.0, 1e-6);
 }
 
 TEST_F(MoveJointsToObjective, TheTrajectoryControllerIsActivatedBeforeMoving)

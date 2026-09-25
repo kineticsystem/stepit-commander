@@ -21,30 +21,34 @@
 #pragma once
 
 #include <string>
-#include <vector>
 
 #include <behaviortree_cpp/action_node.h>
+#include <trajectory_msgs/msg/joint_trajectory.hpp>
 
 namespace stepit_behaviors
 {
 
 /**
- * @brief Offsets the current joint positions by the commanded displacement, and
- * writes out the absolute positions to reach.
+ * @brief Builds a cubic trajectory to a set of absolute joint positions, reached
+ * at rest after `duration` seconds.
  *
- * This node moves nothing: it only turns a relative command into the absolute
- * targets that FollowJointTrajectory then sends to the controller.
+ * The trajectory is a single waypoint, with positions and zero velocities: the
+ * cubic comes from the controller, which joins the joints' current state to the
+ * waypoint with one. Every joint starts and stops at rest, and all of them
+ * arrive together. The acceleration peaks only at the start and the end, and
+ * the speed only halfway: TrapezoidalTrajectory is faster within the same
+ * limits.
  *
- * The displacement carries its own sign, and the sign convention of the robot
- * is the one of the joint positions themselves: a negative offset decreases the
- * joint position, which on the StepIt motors means turning clockwise. Nothing
- * here is bound to rotary joints: on a prismatic joint the very same offset is
- * a distance.
+ * This node moves nothing: FollowJointTrajectory sends the trajectory to the
+ * controller.
  */
-class OffsetJointPositions : public BT::SyncActionNode
+class CubicTrajectory : public BT::SyncActionNode
 {
 public:
-  OffsetJointPositions(const std::string& name, const BT::NodeConfig& config);
+  /// @brief Default duration of the motion, in seconds, when no duration is given.
+  static constexpr double kDefaultDuration = 5.0;
+
+  CubicTrajectory(const std::string& name, const BT::NodeConfig& config);
 
   static BT::PortsList providedPorts();
 

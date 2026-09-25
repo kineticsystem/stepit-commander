@@ -29,10 +29,12 @@ add_library(stepit_behaviors SHARED
   src/get_active_controllers.cpp
   src/get_joint_positions.cpp
   src/nodes_model.cpp
-  src/offset_joint_positions.cpp
+  src/offset_vector.cpp
+  src/cubic_trajectory.cpp
   src/ports.cpp
   src/register_nodes.cpp
-  src/switch_controller.cpp)
+  src/switch_controller.cpp
+  src/trapezoidal_trajectory.cpp)
 
 target_include_directories(stepit_behaviors PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -57,7 +59,7 @@ target_compile_definitions(stepit_behaviors_plugin PRIVATE BT_PLUGIN_EXPORT)
 target_link_libraries(stepit_behaviors_plugin PRIVATE stepit_behaviors)
 
 ######################################################
-# Writes the node models of the behaviors, for editors like Groot2:
+# Writes the node models of the behaviors, for editors like the StepIt Editor:
 #   ros2 run stepit_behaviors write_nodes_model <file>
 
 add_executable(write_nodes_model src/write_nodes_model.cpp)
