@@ -27,9 +27,33 @@ if(BUILD_TESTING)
   find_package(trajectory_msgs REQUIRED)
 
   # The behaviors, ticked inside a behavior tree.
-  ament_add_gtest(test_offset_joint_positions tests/test_offset_joint_positions.cpp)
-  target_link_libraries(test_offset_joint_positions
+  ament_add_gtest(test_offset_vector tests/test_offset_vector.cpp)
+  target_link_libraries(test_offset_vector
     stepit_behaviors::stepit_behaviors)
+
+  # The trajectory to a set of joint positions.
+  ament_add_gtest(test_cubic_trajectory tests/test_cubic_trajectory.cpp)
+  target_link_libraries(test_cubic_trajectory
+    stepit_behaviors::stepit_behaviors
+    ${trajectory_msgs_TARGETS})
+
+  # The fastest trajectory the limits allow.
+  ament_add_gtest(test_trapezoidal_trajectory tests/test_trapezoidal_trajectory.cpp)
+  target_link_libraries(test_trapezoidal_trajectory
+    stepit_behaviors::stepit_behaviors
+    rclcpp::rclcpp
+    ${trajectory_msgs_TARGETS})
+
+  # Reading the joint positions, against a fake robot.
+  ament_add_gtest(test_get_joint_positions tests/test_get_joint_positions.cpp)
+  target_include_directories(test_get_joint_positions PRIVATE tests)
+  target_link_libraries(test_get_joint_positions
+    stepit_behaviors::stepit_behaviors
+    rclcpp::rclcpp
+    rclcpp_action::rclcpp_action
+    ${control_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${trajectory_msgs_TARGETS})
 
   # Reading a port that holds either a list of names or a single name.
   ament_add_gtest(test_ports tests/test_ports.cpp)

@@ -20,11 +20,14 @@
 
 #pragma once
 
+#include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
 
-#include <behaviortree_ros2/bt_topic_sub_node.hpp>
+#include <behaviortree_cpp/action_node.h>
+#include <behaviortree_ros2/ros_node_params.hpp>
+#include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
 
 namespace stepit_behaviors
@@ -33,18 +36,39 @@ namespace stepit_behaviors
 /**
  * @brief Reads the current position of a set of joints from /joint_states.
  *
- * It returns FAILURE when no message has been received yet, or when one of the
- * requested joints is not part of the message, so that it can be retried by the
- * behavior tree.
+ * It subscribes when the tree is created, and keeps the latest message. When
+ * ticked before any message has arrived, it waits for one (RUNNING) up to
+ * `timeout` seconds, then fails. It fails at once when one of the requested
+ * joints is not part of the message: waiting would not fix that.
  */
-class GetJointPositions : public BT::RosTopicSubNode<sensor_msgs::msg::JointState>
+class GetJointPositions : public BT::StatefulActionNode
 {
 public:
   GetJointPositions(const std::string& name, const BT::NodeConfig& config, const BT::RosNodeParams& params);
 
   static BT::PortsList providedPorts();
 
-  BT::NodeStatus onTick(const std::shared_ptr<sensor_msgs::msg::JointState>& msg) override;
+  BT::NodeStatus onStart() override;
+  BT::NodeStatus onRunning() override;
+  void onHalted() override;
+
+private:
+  /// @brief Subscribe to the topic of the `topic_name` port, unless already done.
+  /// @return Whether the subscription exists.
+  bool subscribe();
+
+  /// @brief Write the positions of the latest message.
+  /// @return SUCCESS, FAILURE if a joint is missing, RUNNING if no message has arrived yet.
+  BT::NodeStatus read();
+
+  std::weak_ptr<rclcpp::Node> node_;
+  rclcpp::Logger logger_;
+  rclcpp::CallbackGroup::SharedPtr callback_group_;
+  rclcpp::executors::SingleThreadedExecutor executor_;
+  rclcpp::Subscription<sensor_msgs::msg::JointState>::SharedPtr subscription_;
+  sensor_msgs::msg::JointState::SharedPtr last_msg_;
+  double timeout_{ 0.0 };
+  std::chrono::steady_clock::time_point deadline_;
 };
 
 }  // namespace stepit_behaviors

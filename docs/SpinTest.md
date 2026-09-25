@@ -2,11 +2,11 @@
 
 [`spin_test.xml`](../src/stepit_objectives/objectives/spin_test.xml) is a
 hardware test: joint *k* turns *k* full turns clockwise, joint1 once up to
-joint5 five times, as fast as the motors allow, and then every joint returns to
-where it started.
+joint5 five times, as fast as the motors allow within 90% of their limits, and
+then every joint returns to where it started.
 
-It takes no parameters: the joints, the turns and the durations are fixed in
-the XML.
+It takes no parameters: the joints and the turns are fixed in the XML, and both
+moves run at 90% of the limits of the motors.
 
 ```bash
 ros2 action send_goal /commander/execute_objective \
@@ -16,32 +16,30 @@ ros2 action send_goal /commander/execute_objective \
 
 ```
 SpinTest
-├── SubTree EnsureControllers             (joint_trajectory_controller only)
-├── Stage 1: GetJointPositions → {home}   (retried until a joint state arrives)
-│            OffsetJointPositions −2π
-│            FollowJointTrajectory        (joints 1..5, 3.5 s)
-├── Stage 2..5: GetJointPositions → {current}
-│               OffsetJointPositions −2π
-│               FollowJointTrajectory     (joints k..5, 3.5 s)
-└── FollowJointTrajectory {home}          (all joints back, 8 s)
+├── SubTree EnsureControllers   (joint_trajectory_controller only)
+├── GetJointPositions           -> {home}
+├── OffsetVector                (joint k by −2π·k)   -> {target}
+├── TrapezoidalTrajectory       {home} to {target}   -> {trajectory}
+├── FollowJointTrajectory       {trajectory}
+├── TrapezoidalTrajectory       {target} to {home}   -> {trajectory}
+└── FollowJointTrajectory       {trajectory}
 ```
 
 Three details are worth knowing:
 
-- **Why stages.** `OffsetJointPositions` applies one offset to all its joints, so
-  different turn counts cannot be expressed in a single move. Each stage turns
-  joints *k* to 5 once more, which adds up to *k* turns for joint *k*.
-- **Why 3.5 s per turn.** The motors are limited to 3.14 rad/s², far before
-  they could reach their 31.4 rad/s velocity limit over one turn. The single
-  waypoint `FollowJointTrajectory` sends becomes a cubic of peak acceleration
-  `6 d/T²`, so one turn (2π) needs at least 3.46 s; 3.5 s peaks at ~2.6 rad/s.
-  The return is 8 s because joint5 has five turns (31.4 rad) to undo.
-- **Why only the first read is retried.** The subscription to `/joint_states` is
-  created with the tree, i.e. with every goal, and the topic is volatile, so the
-  first read usually finds no message yet. It is retried every 50 ms, up to 2 s,
-  pausing only after a failure. Every later read shares the same subscription,
-  which by then always holds a message, so it needs no retry.
+- **One move.** `OffsetVector` takes one offset per joint, so joint *k* is
+  offset by *k* turns, −2π·*k*, and all the turns are a single move. The joints
+  start and stop together.
+- **At 90% of the limits.** Both moves are trapezoids at 16.96 rad/s
+  (2.7 turns/s) and 11.31 rad/s² (1.8 turns/s²), 90% of the limits of stepit.
+  Joint 5, with the longest way, accelerates for 1.5 s, cruises at top speed and
+  brakes for 1.5 s: 3.4 s for its five turns (31.4 rad). The other joints follow
+  the same profile scaled down, so joint *k* moves at *k*/5 of that. Motors 1
+  and 2, which lose steps first, stay at a fifth and two fifths of it.
+- **Why not 100%.** The microcontroller follows the commanded positions with
+  its own ramp, limited to the same values, and trails them. At 100%, motor 5
+  cannot catch up: in the first run it was still 0.035 rad short half a second
+  after the end, and the controller aborted the goal. No step was lost.
 
-Measured on the robot, starting from 0.0: the joints reached exactly 1 to 5
-turns, peaked at 2.6 to 5.8 rad/s, and ended stopped at 0.0000 rad; the goal
-took 26.5 s.
+The whole test takes about 7 s, plus the time to activate the controller. At
+90% it has not run on the robot yet.

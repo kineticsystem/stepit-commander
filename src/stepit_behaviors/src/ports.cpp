@@ -20,6 +20,8 @@
 
 #include "stepit_behaviors/ports.hpp"
 
+#include <utility>
+
 namespace stepit_behaviors
 {
 
@@ -36,6 +38,44 @@ std::vector<std::string> getNames(const BT::TreeNode& node, const std::string& p
     return { name.value() };
   }
   return {};
+}
+
+std::optional<std::vector<double>> getNumbers(const BT::TreeNode& node, const std::string& port)
+{
+  if (const auto numbers = node.getInput<std::vector<double>>(port))
+  {
+    return numbers.value();
+  }
+  if (const auto number = node.getInput<double>(port))
+  {
+    return std::vector<double>{ number.value() };
+  }
+  return std::nullopt;
+}
+
+std::vector<double> getNumbersOr(const BT::TreeNode& node, const std::string& port, double fallback)
+{
+  if (auto numbers = getNumbers(node, port))
+  {
+    return std::move(numbers.value());
+  }
+
+  const auto& ports = node.config().input_ports;
+  const auto it = ports.find(port);
+  bool is_set = it != ports.end() && !it->second.empty();
+  if (is_set)
+  {
+    if (const auto key = BT::TreeNode::getRemappedKey(port, it->second))
+    {
+      const auto entry = node.config().blackboard->getEntry(std::string(key.value()));
+      is_set = entry && !entry->value.empty();
+    }
+  }
+  if (is_set)
+  {
+    throw BT::RuntimeError("[", port, "] must be a number, or a list of numbers");
+  }
+  return { fallback };
 }
 
 }  // namespace stepit_behaviors

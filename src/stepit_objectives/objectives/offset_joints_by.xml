@@ -7,50 +7,57 @@
   MoveJointsTo, which sends the joints to absolute positions.
 
   The offset carries its own sign: it is negative when the StepIt motors turn
-  clockwise, because a clockwise rotation decreases the joint position.
+  clockwise, because a clockwise rotation decreases the joint position. It is
+  one number for every joint, or a list with one per joint.
+
+  The motion is a trapezoid, as fast as the motors allow: each joint
+  accelerates at the limit, cruises at top speed and brakes at the limit, all of
+  them arriving together. The limits default to 90% of those of the StepIt
+  motors, 2.7 turns/s and 1.8 turns/s²; max_velocity and max_acceleration
+  change them, one for every joint or one per joint.
 
   It is invoked through the commander action server:
 
     ros2 action send_goal /commander/execute_objective \
       btcpp_ros2_interfaces/action/ExecuteTree \
       "{target_tree: OffsetJointsBy,
-        payload: '{joints: [joint1, joint2], offset: -6.28, duration: 5.0}'}"
+        payload: '{joints: [joint1, joint2], offset: -6.28}'}"
 
   The payload entries are written by the server into the global blackboard,
   which is why they are referenced below with the '@' prefix.
 -->
 <root BTCPP_format="4" main_tree_to_execute="OffsetJointsBy">
 
-  <BehaviorTree ID="OffsetJointsBy" _description="Moves one or more joints by an offset from where they are when the objective starts.">
+  <BehaviorTree ID="OffsetJointsBy" _description="Moves one or more joints by an offset from where they are when the objective starts, as fast as the limits allow.">
     <Sequence>
 
       <!-- The motion is sent to the trajectory controller, so make sure that
            this is the controller driving the robot, and no other. -->
       <SubTree ID="EnsureControllers" controllers="joint_trajectory_controller"/>
 
-      <!-- Where are we now? /joint_states is published at 30 Hz, so the very
-           first tick usually finds no message yet: retry a few times. -->
-      <RetryUntilSuccessful num_attempts="10">
-        <Delay delay_msec="200">
-          <GetJointPositions _description="Reads where the joints are now, from /joint_states."
-                             topic_name="/joint_states"
-                             joint_names="{@joints}"
-                             positions="{current_positions}"/>
-        </Delay>
-      </RetryUntilSuccessful>
+      <!-- Where are we now? -->
+      <GetJointPositions _description="Reads where the joints are now, from /joint_states."
+                         topic_name="/joint_states"
+                         joint_names="{@joints}"
+                         positions="{current_positions}"/>
 
       <!-- Turn the commanded offset into absolute joint targets. -->
-      <OffsetJointPositions _description="Adds the commanded offset to the current positions, giving the absolute targets."
-                            offset="{@offset}"
-                            current_positions="{current_positions}"
-                            target_positions="{target_positions}"/>
+      <OffsetVector _description="Adds the commanded offset to the current positions, giving the absolute targets."
+                    input="{current_positions}"
+                    offset="{@offset}"
+                    output="{target_positions}"/>
 
       <!-- Hand the targets over to the trajectory controller. -->
-      <FollowJointTrajectory _description="Moves the joints to the computed targets, over the requested duration."
-                             action_name="/joint_trajectory_controller/follow_joint_trajectory"
+      <TrapezoidalTrajectory _description="Goes to the computed targets as fast as the limits allow: accelerate, cruise, brake."
                              joint_names="{@joints}"
+                             start_positions="{current_positions}"
                              positions="{target_positions}"
-                             duration="{@duration}"/>
+                             max_velocity="{@max_velocity}"
+                             max_acceleration="{@max_acceleration}"
+                             trajectory="{trajectory}"/>
+      <FollowJointTrajectory _description="Sends the trajectory to the trajectory controller, and waits until the joints have followed it."
+                             action_name="/joint_trajectory_controller/follow_joint_trajectory"
+                             trajectory="{trajectory}"/>
 
     </Sequence>
   </BehaviorTree>

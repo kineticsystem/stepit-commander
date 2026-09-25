@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -38,5 +39,31 @@ namespace stepit_behaviors
  * @return The names, empty if the port is not set.
  */
 std::vector<std::string> getNames(const BT::TreeNode& node, const std::string& port);
+
+/**
+ * @brief Read a port that holds either a list of numbers or a single number.
+ *
+ * The port has to be declared with BT::AnyTypeAllowed: a command writes
+ * `{offset: -6.28}` as a double and `{offset: [-6.28, 3.14]}` as a list of
+ * doubles, and a typed port would refuse one of the two when the tree is
+ * created. In the XML, a literal is a list separated by `;`, e.g.
+ * `offset="-6.28;3.14"`.
+ *
+ * @return The numbers, a single one for a single number, or nothing if the
+ * port is not set or holds something else.
+ */
+std::optional<std::vector<double>> getNumbers(const BT::TreeNode& node, const std::string& port);
+
+/**
+ * @brief Read a port like getNumbers, with a default for when it is not set.
+ *
+ * The port is not set when the XML does not give it, or when it points at a
+ * blackboard entry that does not exist, e.g. an optional parameter missing from
+ * the payload.
+ *
+ * @return The numbers, or `{ fallback }` if the port is not set.
+ * @throws BT::RuntimeError if the port is set to something else than numbers.
+ */
+std::vector<double> getNumbersOr(const BT::TreeNode& node, const std::string& port, double fallback);
 
 }  // namespace stepit_behaviors

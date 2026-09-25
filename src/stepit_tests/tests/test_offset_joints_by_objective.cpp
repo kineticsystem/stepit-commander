@@ -24,6 +24,7 @@
 // BehaviorTree.ROS2) is left out.
 
 #include <chrono>
+#include <cmath>
 #include <filesystem>
 #include <string>
 
@@ -31,6 +32,8 @@
 
 #include <behaviortree_cpp/bt_factory.h>
 #include <stepit_behaviors/register_nodes.hpp>
+#include <stepit_behaviors/trapezoidal_trajectory.hpp>
+#include <rclcpp/duration.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 #include "fake/fake_controller_manager.hpp"
@@ -48,6 +51,11 @@ constexpr auto kObjective = "OffsetJointsBy";
 /// @brief The joints of the StepIt robot, and where they start from.
 const std::vector<std::string> kJointNames{ "joint1", "joint2", "joint3", "joint4", "joint5" };
 const std::vector<double> kJointPositions{ 0.5, 1.0, 0.0, -1.0, 2.0 };
+
+double seconds(const trajectory_msgs::msg::JointTrajectoryPoint& point)
+{
+  return rclcpp::Duration(point.time_from_start).seconds();
+}
 
 }  // namespace
 
@@ -93,24 +101,24 @@ protected:
   BT::BehaviorTreeFactory factory_;
 };
 
+// One turn is too short to reach the top speed at the motors' acceleration
+// limit: the motion is a triangle, accelerate then brake.
 TEST_F(OffsetJointsByObjective, ANegativeOffsetOnTwoJoints)
 {
-  ASSERT_EQ(runObjective(factory_, kObjective, "{joints: [joint1, joint2], offset: -6.28, duration: 2.0}"),
-            BT::NodeStatus::SUCCESS);
+  ASSERT_EQ(runObjective(factory_, kObjective, "{joints: [joint1, joint2], offset: -6.28}"), BT::NodeStatus::SUCCESS);
 
   const auto trajectory = robot_->lastTrajectory();
   ASSERT_TRUE(trajectory.has_value());
   EXPECT_EQ(trajectory->joint_names, (std::vector<std::string>{ "joint1", "joint2" }));
 
-  ASSERT_EQ(trajectory->points.size(), 1u);
-  const auto& point = trajectory->points.front();
-  ASSERT_EQ(point.positions.size(), 2u);
+  ASSERT_EQ(trajectory->points.size(), 2u);
+  const auto& arrival = trajectory->points.back();
+  ASSERT_EQ(arrival.positions.size(), 2u);
   // A negative offset decreases the joint position, i.e. turns clockwise.
-  EXPECT_DOUBLE_EQ(point.positions[0], 0.5 - 6.28);
-  EXPECT_DOUBLE_EQ(point.positions[1], 1.0 - 6.28);
-  EXPECT_EQ(point.velocities, (std::vector<double>{ 0.0, 0.0 }));
-  EXPECT_EQ(point.time_from_start.sec, 2);
-  EXPECT_EQ(point.time_from_start.nanosec, 0u);
+  EXPECT_NEAR(arrival.positions[0], 0.5 - 6.28, 1e-9);
+  EXPECT_NEAR(arrival.positions[1], 1.0 - 6.28, 1e-9);
+  EXPECT_EQ(arrival.velocities, (std::vector<double>{ 0.0, 0.0 }));
+  EXPECT_NEAR(seconds(arrival), 2.0 * std::sqrt(6.28 / stepit_behaviors::TrapezoidalTrajectory::kMaxAcceleration), 1e-6);
 }
 
 TEST_F(OffsetJointsByObjective, APositiveOffsetOnOneJoint)
@@ -120,11 +128,52 @@ TEST_F(OffsetJointsByObjective, APositiveOffsetOnOneJoint)
   const auto trajectory = robot_->lastTrajectory();
   ASSERT_TRUE(trajectory.has_value());
   EXPECT_EQ(trajectory->joint_names, (std::vector<std::string>{ "joint4" }));
-  ASSERT_EQ(trajectory->points.size(), 1u);
-  ASSERT_EQ(trajectory->points.front().positions.size(), 1u);
-  EXPECT_DOUBLE_EQ(trajectory->points.front().positions[0], -1.0 + 1.57);
-  // The duration is optional and falls back to its default.
-  EXPECT_EQ(trajectory->points.front().time_from_start.sec, 5);
+  ASSERT_FALSE(trajectory->points.empty());
+  ASSERT_EQ(trajectory->points.back().positions.size(), 1u);
+  EXPECT_NEAR(trajectory->points.back().positions[0], -1.0 + 1.57, 1e-9);
+}
+
+// Lower limits in the payload slow the motion down: 3 rad at 1 rad/s and
+// 1 rad/s² is 1 s accelerating over 0.5 rad, 2 s cruising over 2 rad, and 1 s
+// braking over the last 0.5 rad.
+TEST_F(OffsetJointsByObjective, ThePayloadCanLowerTheLimits)
+{
+  ASSERT_EQ(runObjective(factory_, kObjective,
+                         "{joints: [joint1], offset: 3.0, max_velocity: 1.0, max_acceleration: 1.0}"),
+            BT::NodeStatus::SUCCESS);
+
+  const auto trajectory = robot_->lastTrajectory();
+  ASSERT_TRUE(trajectory.has_value());
+  ASSERT_EQ(trajectory->points.size(), 3u);
+  EXPECT_NEAR(trajectory->points[0].velocities[0], 1.0, 1e-9);
+  EXPECT_NEAR(trajectory->points.back().positions[0], 0.5 + 3.0, 1e-9);
+  EXPECT_NEAR(seconds(trajectory->points.back()), 4.0, 1e-6);
+}
+
+TEST_F(OffsetJointsByObjective, OneOffsetPerJoint)
+{
+  ASSERT_EQ(runObjective(factory_, kObjective, "{joints: [joint1, joint3], offset: [-6.28, 3.14]}"),
+            BT::NodeStatus::SUCCESS);
+
+  const auto trajectory = robot_->lastTrajectory();
+  ASSERT_TRUE(trajectory.has_value());
+  EXPECT_EQ(trajectory->joint_names, (std::vector<std::string>{ "joint1", "joint3" }));
+  ASSERT_FALSE(trajectory->points.empty());
+  const auto& arrival = trajectory->points.back();
+  ASSERT_EQ(arrival.positions.size(), 2u);
+  EXPECT_NEAR(arrival.positions[0], 0.5 - 6.28, 1e-9);
+  EXPECT_NEAR(arrival.positions[1], 0.0 + 3.14, 1e-9);
+  // Joint 3 has half the way, so it moves at half the speed, the other way.
+  EXPECT_NEAR(trajectory->points.front().velocities[1], -0.5 * trajectory->points.front().velocities[0], 1e-9);
+}
+
+// The server aborts the goal with the message of the exception, which says
+// what is wrong with the command.
+TEST_F(OffsetJointsByObjective, AWrongNumberOfOffsetsAbortsTheObjective)
+{
+  EXPECT_THROW(runObjective(factory_, kObjective, "{joints: [joint1, joint3], offset: [-6.28, 3.14, 1.0]}"),
+               BT::RuntimeError);
+  EXPECT_FALSE(robot_->lastTrajectory().has_value());
 }
 
 // The objective needs the trajectory controller: it activates it, and stops

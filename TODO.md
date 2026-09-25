@@ -2,14 +2,18 @@
 
 Open questions and concerns, written down as they came up. The code builds, the
 tests pass and the objectives were run on the robot: these are decisions we
-deferred, and measurements we made while deferring them. Item 3 is the one to
-read before trusting the result of a goal.
+deferred, and measurements we made while deferring them. Item 15 is the one to
+read before running the tests.
 
 ## Commanding motion
 
 ### 1. A speed instead of a duration
 
-`FollowJointTrajectory` builds a trajectory with a single waypoint: the target
+**Done:** the objectives that move the robot now use `TrapezoidalTrajectory`,
+and take `max_velocity` and `max_acceleration` instead of a `duration`. What
+follows is the analysis that led there, about `CubicTrajectory`.
+
+`CubicTrajectory` builds a trajectory with a single waypoint: the target
 positions, zero velocity on arrival, and `time_from_start = duration` (5 s by
 default). We say *where* to end up and *when* to be there, never how fast, so
 the speed falls out of the arithmetic:
@@ -28,14 +32,14 @@ Two consequences:
 - To move at a known speed, the client has to compute
   `duration = |offset| / speed` for every command.
 - Nothing rejects the impossible. The motors are configured with
-  `max_velocity` 31.4159 rad/s and `acceleration` 3.14159 rad/s²
+  `max_velocity` 18.85 rad/s and `acceleration` 12.57 rad/s²
   (`stepit.ros2_control.xacro`), so `{offset: 31.4, duration: 0.5}` asks for
   ~63 rad/s: the controller commands a trajectory the hardware cannot follow and
   the joint simply lags behind it.
 
 Possible answer: accept a `velocity` in the payload as an alternative to
 `duration`, with `duration = |offset| / velocity` and exactly one of the two
-allowed. It is a port on `FollowJointTrajectory` plus a few lines and tests, no
+allowed. It is a port on `CubicTrajectory` plus a few lines and tests, no
 structural change. Optionally also refuse a command that exceeds `max_velocity`.
 
 A trapezoid is available for the same duration, if the shape of the motion ever
@@ -56,8 +60,12 @@ accelerating. Measured on the robot, 1 rad in 2 s with `r = 0.25`:
 Same arrival time, 11% less peak velocity and acceleration, so a duration the
 cubic cannot honour may still be feasible as a trapezoid. It also makes our
 setpoints agree with the trapezoid the MCU runs internally, instead of the MCU
-chasing a bell curve. The cost is building the waypoints in
-`FollowJointTrajectory`.
+chasing a bell curve.
+
+`TrapezoidalTrajectory` now builds such a trajectory, though not for a given
+duration: it goes as fast as the limits allow. `MoveJointsTo`, `OffsetJointsBy`
+and `SpinTest` all use it, so the objectives take limits instead of a duration.
+`CubicTrajectory` remains for a move that must take a given time.
 
 ### 2. Why the trajectory controller and not the position controller
 
@@ -99,9 +107,9 @@ What it costs:
 **Decision: keep the trajectory controller for now.** It is the only option that
 gives completion feedback, joints that arrive together, and a cancel that
 actually decelerates the robot, and none of the alternatives improved on all
-three. The position controller stays the answer if a maximum-speed move is ever
-wanted; those objectives would be named `SnapJointsTo` and `SnapJointsBy`,
-beside the timed `MoveJointsTo` and `OffsetJointsBy`.
+three. A maximum-speed move no longer needs the position controller:
+`MoveJointsTo` builds one with `TrapezoidalTrajectory` and still sends it to the
+trajectory controller.
 
 The other option, never tried, is to load several `JointGroupPositionController`
 instances, each with its own `joints` list (e.g. one per joint). They claim
@@ -110,7 +118,13 @@ different command interfaces, so several can be active at once, and
 
 ### 3. A goal succeeds without checking where the robot is
 
-`controllers.yaml` configures no `constraints`, and in the trajectory controller
+**Done in StepIt:** its `controllers.yaml` now sets a `goal` tolerance of
+0.01 rad per joint and a `goal_time` of 0.5 s, so a goal succeeds only once
+every joint is within 0.01 rad of its target, and fails if one is not 0.5 s
+after the end of the trajectory. That is the check that aborted `SpinTest` when
+it ran at 100% of the motors' limits. What follows is the situation before.
+
+`controllers.yaml` configured no `constraints`, and in the trajectory controller
 a tolerance of 0.0 means *disabled*, not *exact*. The per-joint `goal` tolerance
 is therefore never applied, and the only check left is
 `stopped_velocity_tolerance` (0.01 rad/s by default), which the controller folds
@@ -155,8 +169,8 @@ first.
 
 ### 6. The objectives switch controllers unconditionally
 
-`OffsetJointsBy` and `MoveJointsTo` both call `EnsureControllers`, so they stop a
-controller that was activated on purpose. That is the self-healing behavior we
+`OffsetJointsBy`, `MoveJointsTo` and `SpinTest` all call `EnsureControllers`, so
+they stop a controller that was activated on purpose. That is the self-healing behavior we
 chose, but the alternative is to *check* the active controller and fail instead
 of switching. One line of XML either way.
 
@@ -171,15 +185,19 @@ runs until the client cancels. Wrapping `FollowJointTrajectory` in the built-in
 ### 8. Scalars and lists are not symmetric
 
 `{controllers: velocity_controller}` and `{controllers: [velocity_controller]}`
-are both accepted, because those ports go through `stepit_behaviors::getNames`.
-`joints` and `positions` must always be lists: `{joints: joint1, offset: -1.0}`
-fails. Making them symmetric means routing `FollowJointTrajectory`'s ports
-through `getNames` and adding a numeric twin of it. Small, but it is new API
-surface, so it was left alone.
+are both accepted, because those ports go through `stepit_behaviors::getNames`,
+and so are `{offset: -1.0}` and `{offset: [-1.0]}`, through its numeric twin
+`getNumbers`, like `max_velocity` and `max_acceleration`. `joints` and
+`positions` must always be lists: `{joints: joint1, offset: -1.0}` fails.
+Making them symmetric means routing the ports of `GetJointPositions`,
+`CubicTrajectory` and `TrapezoidalTrajectory` through the same two helpers, and
+declaring them `BT::AnyTypeAllowed`. Small, but it is new API surface, so it was
+left alone.
 
 ### 9. Radians are assumed everywhere
 
-`offset` and `positions` are documented as radians. Nothing in the behaviors is
+`offset` and `positions` are documented as radians, and the limits as rad/s
+and rad/s². Nothing in the behaviors is
 bound to rotary joints, but a prismatic joint would carry metres in the same
 field, with no way to tell them apart. Only a documentation problem today.
 
@@ -203,11 +221,12 @@ StepIt has three GitHub Actions workflows (industrial_ci, format, ros-lint).
 This repository has none, so nothing checks a pull request. The hooks and
 `./bin/test.sh` already define what CI would have to run.
 
-### 12. Two servers collide on the Groot2 port
+### 12. Two servers collide on port 1667
 
 Running a second `stepit_server` makes every goal fail with
-`Behavior Tree exception: Address already in use`, because both try to publish
-Groot2 on port 1667. Worth knowing before debugging the tree itself.
+`Behavior Tree exception: Address already in use`: BehaviorTree.ROS2 publishes
+the state of the running tree on port 1667, and both servers try to. Worth
+knowing before debugging the tree itself.
 
 ### 13. The submodule tracks a branch
 
@@ -221,9 +240,21 @@ would move it. There is no released Debian package to depend on instead.
 from the StepIt template. Intentional for a development container, but visible
 to anyone who can read the repository.
 
+### 15. The tests reach the robot
+
+The fake robot and the fake controller manager of the tests use the real names:
+`/joint_states`, `/joint_trajectory_controller/follow_joint_trajectory` and
+`/controller_manager/...`. The robot and the commander share the host network,
+so on the default ROS domain the tests read the real joint states, switch the
+real controllers and send goals to the real trajectory controller: a test run
+once moved motors 1 and 2 of the robot. Until the tests isolate themselves, run
+them with `ROS_DOMAIN_ID` set to an unused domain, e.g.
+`ROS_DOMAIN_ID=77 ./bin/test.sh`. Setting it in `src/stepit_tests/CMakeLists.txt`
+for every test would make that automatic.
+
 ## Worth considering
 
-### 15. Node patterns from Nav2
+### 16. Node patterns from Nav2
 
 There is no library of ready-made behaviors for `ros2_control` robots, but
 `nav2_behavior_tree` has domain-agnostic control and decorator nodes worth
