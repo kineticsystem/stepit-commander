@@ -29,6 +29,7 @@ endif()
 
 add_library(stepit_server STATIC
   src/stepit_server.cpp
+  src/execution_status.cpp
   src/payload.cpp
   src/tree_loader.cpp)
 
