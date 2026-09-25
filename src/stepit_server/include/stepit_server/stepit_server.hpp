@@ -29,6 +29,7 @@
 #include <behaviortree_ros2/tree_execution_server.hpp>
 
 #include "stepit_server/payload.hpp"
+#include "stepit_server/tree_loader.hpp"
 
 namespace stepit_server
 {
@@ -48,7 +49,11 @@ public:
   explicit CommanderServer(const rclcpp::NodeOptions& options);
 
 protected:
-  /// @brief Reject the goal when its payload cannot be understood.
+  /**
+   * @brief Reject the goal when its payload cannot be understood, or when its
+   * objective does not exist. The trees are reloaded first if their files
+   * changed, so that the goal runs them as they are on disk.
+   */
   bool onGoalReceived(const std::string& tree_name, const std::string& payload) override;
 
   /// @brief Publish the parameters of the command into the global blackboard.
@@ -57,11 +62,15 @@ protected:
   std::optional<std::string> onTreeExecutionCompleted(BT::NodeStatus status, bool was_cancelled) override;
 
 private:
+  /// @brief Reload the trees of the `behavior_trees` folders if their files changed.
+  void reloadTrees();
+
   /// @brief Parameters of the goal being executed.
   Payload payload_;
   /// @brief Blackboard entries written for the previous goal.
   std::vector<std::string> written_keys_;
   std::shared_ptr<BT::StdCoutLogger> logger_;
+  TreeLoader tree_loader_;
 };
 
 }  // namespace stepit_server

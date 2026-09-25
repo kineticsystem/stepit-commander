@@ -74,6 +74,10 @@ if(BUILD_TESTING)
   target_compile_definitions(test_nodes_model PRIVATE
     NODES_MODEL_FILE="${CMAKE_CURRENT_SOURCE_DIR}/../stepit_objectives/objectives/stepit_behaviors.xml")
 
+  # Reloading the behavior trees when their files change.
+  ament_add_gtest(test_tree_loader tests/test_tree_loader.cpp)
+  target_link_libraries(test_tree_loader stepit_server::stepit_server)
+
   # The payload of a command.
   ament_add_gtest(test_payload tests/test_payload.cpp)
   target_link_libraries(test_payload stepit_server::stepit_server)

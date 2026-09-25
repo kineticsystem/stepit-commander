@@ -166,7 +166,9 @@ controller are needed.
 ## Adding a new objective
 
 1. Write the XML in `src/stepit_objectives/objectives`. Nothing else to do:
-   the folder is already loaded by the server. A step that more than one
+   the folder is already loaded by the server, which reads the files again
+   before each goal whenever one was added, changed or removed, so the next
+   goal runs it, with no build and no restart. A step that more than one
    objective needs goes in a tree of its own, in the same folder, called with
    `<SubTree ID="..."/>`. Such a subtree takes its parameters from ports
    (`{controllers}`), so each caller can pass its own; only the objective a

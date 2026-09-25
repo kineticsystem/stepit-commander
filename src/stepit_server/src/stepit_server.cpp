@@ -20,6 +20,13 @@
 
 #include "stepit_server/stepit_server.hpp"
 
+#include <algorithm>
+#include <filesystem>
+#include <string>
+#include <vector>
+
+#include <behaviortree_ros2/bt_utils.hpp>
+
 namespace stepit_server
 {
 
@@ -39,9 +46,46 @@ bool CommanderServer::onGoalReceived(const std::string& tree_name, const std::st
     return false;
   }
 
+  reloadTrees();
+  const auto trees = factory().registeredBehaviorTrees();
+  if (std::find(trees.begin(), trees.end(), tree_name) == trees.end())
+  {
+    RCLCPP_ERROR(node()->get_logger(), "Rejecting objective '%s': no behavior tree has this ID", tree_name.c_str());
+    return false;
+  }
+
   RCLCPP_INFO(node()->get_logger(), "Executing objective '%s' with %zu parameter(s)", tree_name.c_str(),
               payload_.size());
   return true;
+}
+
+void CommanderServer::reloadTrees()
+{
+  // Kept in a variable: as_string_array() returns a reference into the parameter.
+  const auto parameter = node()->get_parameter("behavior_trees");
+  std::vector<std::filesystem::path> folders;
+  for (const auto& value : parameter.as_string_array())
+  {
+    if (const auto folder = BT::GetDirectoryPath(value); !folder.empty())
+    {
+      folders.emplace_back(folder);
+    }
+  }
+
+  const auto result = tree_loader_.reloadIfChanged(factory(), folders);
+  if (result.reloaded && !result.first)
+  {
+    std::string changed;
+    for (const auto& file : result.changed)
+    {
+      changed += (changed.empty() ? "" : ", ") + file;
+    }
+    RCLCPP_INFO(node()->get_logger(), "Reloaded the behavior trees, changed: %s", changed.c_str());
+  }
+  for (const auto& error : result.errors)
+  {
+    RCLCPP_ERROR(node()->get_logger(), "Failed to load a behavior tree: %s", error.c_str());
+  }
 }
 
 void CommanderServer::onTreeCreated(BT::Tree& tree)

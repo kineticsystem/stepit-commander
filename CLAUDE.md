@@ -56,7 +56,10 @@ direction is the point of the package split and should be preserved:
 
 **Nothing is wired up by hand.** Adding an objective means dropping an XML file into
 `stepit_objectives/objectives`, because `stepit_server.yaml` lists that folder in
-`behavior_trees` and the server loads whatever it finds. A new behavior needs a line in
+`behavior_trees` and the server loads whatever it finds. It reads the files again before
+each goal whenever one was added, changed or removed (`TreeLoader`, called from
+`CommanderServer::onGoalReceived`), also following the links of the installed folder back to
+the source folder, so a new or edited XML runs on the next goal with no build or restart. A new behavior needs a line in
 `stepit_behaviors::registerNodes` (`src/register_nodes.cpp`) and, for editors, a regenerated
 node model (see below); nothing else: `plugin.cpp`
 exports the whole package as one `BT_PLUGIN_EXPORT` plugin, installed into
