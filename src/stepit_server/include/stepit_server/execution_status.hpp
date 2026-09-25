@@ -44,9 +44,10 @@ namespace stepit_server
  *   BT::WriteTreeToXML, every subtree expanded into a `<BehaviorTree>` of its own
  *   and every node carrying its `_uid`.
  * - `nodes`: the nodes whose status changed since the previous message, by
- *   `_uid`, each with its last status: RUNNING, SUCCESS, FAILURE or SKIPPED. A
- *   node going back to IDLE, e.g. when its parent completes, keeps the status
- *   it had, so that the client can show how each node ended.
+ *   `_uid`, each with its last status: RUNNING, SUCCESS, FAILURE, SKIPPED, or
+ *   HALTED for a node stopped while running, e.g. by a reactive parent. A node
+ *   going back to IDLE after it ended, when its parent resets it, keeps the
+ *   status it had, so that the client can show how each node ended.
  *
  * The changes are sent at most once per period, and always after the last tick.
  */
@@ -76,7 +77,8 @@ private:
   std::chrono::milliseconds period_;
   bool tree_sent_ = false;
   Clock::time_point last_sent_;
-  std::map<std::uint16_t, BT::NodeStatus> changes_;
+  /// @brief The last status of the nodes that changed, as sent: see above.
+  std::map<std::uint16_t, std::string> changes_;
 };
 
 }  // namespace stepit_server

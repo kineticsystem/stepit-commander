@@ -33,11 +33,18 @@ ExecutionStatus::ExecutionStatus(const BT::Tree& tree, std::chrono::milliseconds
 {
 }
 
-void ExecutionStatus::callback(BT::Duration, const BT::TreeNode& node, BT::NodeStatus, BT::NodeStatus status)
+void ExecutionStatus::callback(BT::Duration, const BT::TreeNode& node, BT::NodeStatus prev_status,
+                               BT::NodeStatus status)
 {
   if (status != BT::NodeStatus::IDLE)
   {
-    changes_[node.UID()] = status;
+    changes_[node.UID()] = BT::toStr(status);
+  }
+  else if (prev_status == BT::NodeStatus::RUNNING)
+  {
+    // A node that ends goes through SUCCESS or FAILURE: straight back to IDLE,
+    // it was halted.
+    changes_[node.UID()] = "HALTED";
   }
 }
 
@@ -57,7 +64,7 @@ std::optional<std::string> ExecutionStatus::feedback(bool finished, Clock::time_
   auto& nodes = message["nodes"] = nlohmann::json::object();
   for (const auto& [uid, status] : changes_)
   {
-    nodes[std::to_string(uid)] = BT::toStr(status);
+    nodes[std::to_string(uid)] = status;
   }
   changes_.clear();
   last_sent_ = now;
