@@ -164,4 +164,35 @@ TEST_F(ExecutionStatusTest, TheLastChangesAreSentWhenTheTreeFinishes)
   EXPECT_TRUE(status.feedback(true, start_ + 1ms).has_value());
 }
 
+// A reactive parent halts its running child when a condition fails: the child
+// is reported HALTED, not left RUNNING.
+TEST(ExecutionStatus, AHaltedNodeIsReportedAsHalted)
+{
+  BT::BehaviorTreeFactory factory;
+  factory.registerNodeType<Wait>("Wait");
+  int checks = 0;
+  factory.registerSimpleCondition("Check", [&checks](BT::TreeNode&) {
+    return ++checks == 1 ? BT::NodeStatus::SUCCESS : BT::NodeStatus::FAILURE;
+  });
+  // uids: 1 ReactiveSequence, 2 Check, 3 Wait.
+  auto tree = factory.createTreeFromText(R"(
+    <root BTCPP_format="4">
+      <BehaviorTree ID="Main">
+        <ReactiveSequence>
+          <Check/>
+          <Wait/>
+        </ReactiveSequence>
+      </BehaviorTree>
+    </root>)");
+  ExecutionStatus status(tree);
+  const auto start = ExecutionStatus::Clock::now();
+
+  ASSERT_EQ(tree.tickExactlyOnce(), BT::NodeStatus::RUNNING);
+  status.feedback(false, start);
+  ASSERT_EQ(tree.tickExactlyOnce(), BT::NodeStatus::FAILURE);
+
+  const auto message = nlohmann::json::parse(status.feedback(true, start + 10ms).value());
+  EXPECT_EQ(message.at("nodes"), (nlohmann::json{ { "1", "FAILURE" }, { "2", "FAILURE" }, { "3", "HALTED" } }));
+}
+
 }  // namespace stepit_server::test
