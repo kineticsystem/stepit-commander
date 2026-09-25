@@ -31,6 +31,11 @@ if(BUILD_TESTING)
   target_link_libraries(test_offset_vector
     stepit_behaviors::stepit_behaviors)
 
+  # Looping over values, e.g. positions.
+  ament_add_gtest(test_steps tests/test_steps.cpp)
+  target_link_libraries(test_steps
+    stepit_behaviors::stepit_behaviors)
+
   # The trajectory to a set of joint positions.
   ament_add_gtest(test_cubic_trajectory tests/test_cubic_trajectory.cpp)
   target_link_libraries(test_cubic_trajectory

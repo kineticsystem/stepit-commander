@@ -189,6 +189,7 @@ The three general-purpose objectives shipped here, `OffsetJointsBy`, `MoveJoints
 behavior can take: a ROS action client (`FollowJointTrajectory`), service
 clients (`GetActiveControllers`, `SwitchController`), a subscriber
 (`GetJointPositions`) and pure logic (`OffsetVector`, `TrapezoidalTrajectory`).
+`Steps`, a decorator that loops over values, is described below.
 
 Building a trajectory and following it are separate behaviors, and
 `FollowJointTrajectory` sends whatever trajectory it is given to the
@@ -204,3 +205,30 @@ controller. Two nodes build one:
   the limit, cruises at top speed and brakes at the limit; all joints start and
   stop together. It needs the positions the joints start from, e.g. from
   `GetJointPositions`. Every objective that moves the robot uses it.
+
+To repeat a move over a series of positions, e.g. to take a photo at each
+step of a focus stack, `Steps` ticks its child once per value, and writes the
+value to the blackboard for the child to use:
+
+- `start`, `end` and `count`: `count` values evenly spaced from `start` to
+  `end`, both included; each a number, or a list with one per joint, stepped
+  together.
+- or `values`: a list of numbers, one per iteration, for a single joint, e.g.
+  unevenly spaced.
+
+The value is always a list, as `TrapezoidalTrajectory` expects, and `index`
+numbers the iterations from 0. `Steps` fails as soon as its child fails, and
+starts again from its first value every time it runs, so nesting two makes a
+grid, the inner one going through all its values at each value of the outer
+one:
+
+```xml
+<Steps start="{@joint1_start}" end="{@joint1_end}" count="{@joint1_count}" value="{joint1_value}">
+  <Sequence>
+    <!-- move joint1 to {joint1_value} -->
+    <Steps values="{@joint2_values}" value="{joint2_value}" index="{shot}">
+      <!-- move joint2 to {joint2_value}, then take a photo -->
+    </Steps>
+  </Sequence>
+</Steps>
+```

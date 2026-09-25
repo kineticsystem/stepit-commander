@@ -25,6 +25,7 @@
 #include "stepit_behaviors/get_joint_positions.hpp"
 #include "stepit_behaviors/offset_vector.hpp"
 #include "stepit_behaviors/cubic_trajectory.hpp"
+#include "stepit_behaviors/steps.hpp"
 #include "stepit_behaviors/switch_controller.hpp"
 #include "stepit_behaviors/trapezoidal_trajectory.hpp"
 
@@ -34,6 +35,7 @@ namespace stepit_behaviors
 void registerNodes(BT::BehaviorTreeFactory& factory, const BT::RosNodeParams& params)
 {
   factory.registerNodeType<OffsetVector>("OffsetVector");
+  factory.registerNodeType<Steps>("Steps");
   factory.registerNodeType<CubicTrajectory>("CubicTrajectory");
   factory.registerNodeType<TrapezoidalTrajectory>("TrapezoidalTrajectory");
   factory.registerNodeType<GetJointPositions>("GetJointPositions", params);
