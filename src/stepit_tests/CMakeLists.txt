@@ -106,6 +106,21 @@ if(BUILD_TESTING)
     ${sensor_msgs_TARGETS}
     ${trajectory_msgs_TARGETS})
 
+  ament_add_gtest(test_stack_objective
+    tests/test_stack_objective.cpp
+    TIMEOUT 300)
+  target_include_directories(test_stack_objective PRIVATE tests)
+  target_link_libraries(test_stack_objective
+    ament_index_cpp::ament_index_cpp
+    stepit_behaviors::stepit_behaviors
+    stepit_server::stepit_server
+    rclcpp::rclcpp
+    rclcpp_action::rclcpp_action
+    ${control_msgs_TARGETS}
+    ${controller_manager_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${trajectory_msgs_TARGETS})
+
   ament_add_gtest(test_activate_controller_objective
     tests/test_activate_controller_objective.cpp)
   target_include_directories(test_activate_controller_objective PRIVATE tests)
