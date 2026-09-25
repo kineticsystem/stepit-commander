@@ -81,7 +81,7 @@ the objective, i.e. after the `target_tree` of the command:
 | [`MoveJointsTo`](docs/MoveJointsTo.md) | Moves joints **to** absolute positions. |
 | [`ActivateController`](docs/ActivateController.md) | Stops the controller driving the robot and activates another one. |
 | [`SpinTest`](docs/SpinTest.md) | Hardware test: joint *k* turns *k* times clockwise at 90% of the motors' limits, then all return home. |
-| [`Stack`](docs/Stack.md) | Steps joint1 and joint2 through a grid of 11 × 11 positions, 5 turns in 10 steps each; joints 3, 4 and 5 stay in place. |
+| [`Stack`](docs/Stack.md) | Steps joint1 and joint2 through a grid of 11 × 11 positions, 5 turns in 10 steps each, then returns every joint home; joints 3, 4 and 5 stay in place. |
 
 ## Build and run
 
@@ -166,7 +166,9 @@ controller are needed.
 ## Adding a new objective
 
 1. Write the XML in `src/stepit_objectives/objectives`. Nothing else to do:
-   the folder is already loaded by the server. A step that more than one
+   the folder is already loaded by the server, which reads the files again
+   before each goal whenever one was added, changed or removed, so the next
+   goal runs it, with no build and no restart. A step that more than one
    objective needs goes in a tree of its own, in the same folder, called with
    `<SubTree ID="..."/>`. Such a subtree takes its parameters from ports
    (`{controllers}`), so each caller can pass its own; only the objective a

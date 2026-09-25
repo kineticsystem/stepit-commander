@@ -95,7 +95,8 @@ TEST_F(StackObjective, StepsJoint1AndJoint2ThroughAGrid)
   ASSERT_EQ(runObjective(factory_, kObjective, "", std::chrono::seconds{ 120 }), BT::NodeStatus::SUCCESS);
 
   const auto trajectories = robot_->trajectories();
-  ASSERT_EQ(trajectories.size(), 11u * 12u);
+  // The grid, then the way home.
+  ASSERT_EQ(trajectories.size(), 11u * 12u + 1u);
 
   std::size_t move = 0;
   for (int row = 0; row <= 10; ++row)
@@ -111,9 +112,26 @@ TEST_F(StackObjective, StepsJoint1AndJoint2ThroughAGrid)
       EXPECT_NEAR(target[1], joint2, 1e-9);
     }
   }
-  // Exactly 5 turns from where they started, at the end.
-  EXPECT_NEAR(trajectories.back().points.back().positions[0], kJointPositions[0] + 10.0 * M_PI, 1e-9);
-  EXPECT_NEAR(trajectories.back().points.back().positions[1], kJointPositions[1] + 10.0 * M_PI, 1e-9);
+  // Exactly 5 turns from where they started, at the end of the grid.
+  const auto& last = trajectories[11u * 12u - 1u].points.back().positions;
+  EXPECT_NEAR(last[0], kJointPositions[0] + 10.0 * M_PI, 1e-9);
+  EXPECT_NEAR(last[1], kJointPositions[1] + 10.0 * M_PI, 1e-9);
+}
+
+// When the grid is done, every joint goes back to where it started.
+TEST_F(StackObjective, EveryJointGoesBackHomeAtTheEnd)
+{
+  ASSERT_EQ(runObjective(factory_, kObjective, "", std::chrono::seconds{ 120 }), BT::NodeStatus::SUCCESS);
+
+  const auto trajectories = robot_->trajectories();
+  ASSERT_FALSE(trajectories.empty());
+  const auto& home = trajectories.back();
+  EXPECT_EQ(home.joint_names, kJointNames);
+  ASSERT_FALSE(home.points.empty());
+  for (std::size_t i = 0; i < kJointNames.size(); ++i)
+  {
+    EXPECT_NEAR(home.points.back().positions[i], kJointPositions[i], 1e-9) << kJointNames[i];
+  }
 }
 
 // Every move commands all five joints, so the controller holds joints 3, 4 and

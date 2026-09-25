@@ -29,7 +29,8 @@ endif()
 
 add_library(stepit_server STATIC
   src/stepit_server.cpp
-  src/payload.cpp)
+  src/payload.cpp
+  src/tree_loader.cpp)
 
 set_target_properties(stepit_server PROPERTIES POSITION_INDEPENDENT_CODE OFF)
 
