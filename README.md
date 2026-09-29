@@ -1,6 +1,6 @@
 # StepIt Commander
 
-A single ROS 2 action server that commands the [StepIt](https://github.com/kineticsystem/stepit)
+A single ROS 2 action server that commands the [StepIt](https://github.com/kineticsystem/stepit-driver)
 robot by executing *objectives*, written as [BehaviorTree.CPP](https://www.behaviortree.dev)
 trees.
 
