@@ -24,6 +24,7 @@ if(BUILD_TESTING)
   find_package(rclcpp REQUIRED)
   find_package(rclcpp_action REQUIRED)
   find_package(sensor_msgs REQUIRED)
+  find_package(std_msgs REQUIRED)
   find_package(trajectory_msgs REQUIRED)
 
   # The behaviors, ticked inside a behavior tree.
@@ -65,6 +66,19 @@ if(BUILD_TESTING)
   target_link_libraries(test_ports stepit_behaviors::stepit_behaviors)
 
   # The strictness of a controller switch.
+  # Sending joints to positions through a position controller, against a fake robot.
+  ament_add_gtest(test_command_joint_positions tests/test_command_joint_positions.cpp)
+  target_include_directories(test_command_joint_positions PRIVATE tests)
+  target_link_libraries(test_command_joint_positions
+    stepit_behaviors::stepit_behaviors
+    rclcpp::rclcpp
+    rclcpp_action::rclcpp_action
+    ${control_msgs_TARGETS}
+    ${controller_manager_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${std_msgs_TARGETS}
+    ${trajectory_msgs_TARGETS})
+
   ament_add_gtest(test_switch_controller tests/test_switch_controller.cpp)
   target_link_libraries(test_switch_controller stepit_behaviors::stepit_behaviors)
 
@@ -127,6 +141,20 @@ if(BUILD_TESTING)
     ${control_msgs_TARGETS}
     ${controller_manager_msgs_TARGETS}
     ${sensor_msgs_TARGETS}
+    ${trajectory_msgs_TARGETS})
+
+  ament_add_gtest(test_direct_objectives tests/test_direct_objectives.cpp)
+  target_include_directories(test_direct_objectives PRIVATE tests)
+  target_link_libraries(test_direct_objectives
+    ament_index_cpp::ament_index_cpp
+    stepit_behaviors::stepit_behaviors
+    stepit_server::stepit_server
+    rclcpp::rclcpp
+    rclcpp_action::rclcpp_action
+    ${control_msgs_TARGETS}
+    ${controller_manager_msgs_TARGETS}
+    ${sensor_msgs_TARGETS}
+    ${std_msgs_TARGETS}
     ${trajectory_msgs_TARGETS})
 
   ament_add_gtest(test_activate_controller_objective

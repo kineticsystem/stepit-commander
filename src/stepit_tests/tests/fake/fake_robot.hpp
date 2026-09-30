@@ -20,6 +20,7 @@
 
 #pragma once
 
+#include <algorithm>
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -32,6 +33,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
 #include <sensor_msgs/msg/joint_state.hpp>
+#include <std_msgs/msg/float64_multi_array.hpp>
 #include <trajectory_msgs/msg/joint_trajectory.hpp>
 
 namespace stepit_tests
@@ -40,7 +42,8 @@ namespace stepit_tests
 /**
  * @brief A stand-in for the StepIt robot: it publishes joint states and accepts
  * trajectories, exactly like the joint_trajectory_controller does, and records
- * the goals it receives so that a test can check them.
+ * the goals it receives so that a test can check them. It can also follow the
+ * commands of a position controller, see followPositionCommands.
  */
 class FakeRobot
 {
@@ -60,6 +63,8 @@ public:
     // able to subscribe to it.
     publisher_ = node_->create_publisher<sensor_msgs::msg::JointState>(joint_state_topic, rclcpp::QoS{ 10 });
     timer_ = node_->create_wall_timer(std::chrono::milliseconds(20), [this]() {
+      const std::lock_guard<std::mutex> lock{ mutex_ };
+      advance(0.02);
       state_.header.stamp = node_->now();
       publisher_->publish(state_);
     });
@@ -109,7 +114,65 @@ public:
     fail_ = true;
   }
 
+  /**
+   * @brief Follow the commands of a position controller on the given topic:
+   * one position per joint, in order. Each joint moves to its commanded
+   * position at `speed` rad/s, and the joint states carry the velocities.
+   */
+  void followPositionCommands(const std::string& topic, double speed)
+  {
+    const std::lock_guard<std::mutex> lock{ mutex_ };
+    speed_ = speed;
+    targets_ = state_.position;
+    state_.velocity.assign(state_.position.size(), 0.0);
+    commands_subscription_ = node_->create_subscription<std_msgs::msg::Float64MultiArray>(
+        topic, rclcpp::QoS{ 10 }, [this](const std_msgs::msg::Float64MultiArray::SharedPtr msg) {
+          const std::lock_guard<std::mutex> lock{ mutex_ };
+          commands_.push_back(msg->data);
+          if (msg->data.size() == targets_.size())
+          {
+            targets_ = msg->data;
+          }
+        });
+  }
+
+  /// @brief Keep the joints where they are, whatever the commands, as a robot that is stuck.
+  void freeze()
+  {
+    const std::lock_guard<std::mutex> lock{ mutex_ };
+    speed_ = 0.0;
+  }
+
+  /// @brief Every command of the position controller, in order.
+  std::vector<std::vector<double>> positionCommands() const
+  {
+    const std::lock_guard<std::mutex> lock{ mutex_ };
+    return commands_;
+  }
+
+  /// @brief Where the joints are now.
+  std::vector<double> positions() const
+  {
+    const std::lock_guard<std::mutex> lock{ mutex_ };
+    return state_.position;
+  }
+
 private:
+  /// @brief Move each joint toward its commanded position, for `dt` seconds. Called with the mutex held.
+  void advance(double dt)
+  {
+    if (!commands_subscription_)
+    {
+      return;
+    }
+    for (std::size_t i = 0; i < state_.position.size(); ++i)
+    {
+      const double step = std::clamp(targets_[i] - state_.position[i], -speed_ * dt, speed_ * dt);
+      state_.position[i] += step;
+      state_.velocity[i] = step / dt;
+    }
+  }
+
   void execute(const std::shared_ptr<GoalHandle>& goal_handle)
   {
     {
@@ -135,6 +198,7 @@ private:
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr publisher_;
   rclcpp::TimerBase::SharedPtr timer_;
   rclcpp_action::Server<FollowJointTrajectory>::SharedPtr action_server_;
+  rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr commands_subscription_;
 
   sensor_msgs::msg::JointState state_;
 
@@ -142,6 +206,9 @@ private:
   std::optional<trajectory_msgs::msg::JointTrajectory> last_trajectory_;
   std::vector<trajectory_msgs::msg::JointTrajectory> trajectories_;
   std::atomic_bool fail_{ false };
+  double speed_{ 0.0 };
+  std::vector<double> targets_;
+  std::vector<std::vector<double>> commands_;
 
   rclcpp::executors::SingleThreadedExecutor executor_;
   std::thread spinner_;

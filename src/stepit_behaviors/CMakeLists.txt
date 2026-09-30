@@ -18,6 +18,7 @@ find_package(controller_manager_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(rclcpp_action REQUIRED)
 find_package(sensor_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 
 ######################################################
@@ -25,6 +26,7 @@ find_package(trajectory_msgs REQUIRED)
 # for instance) can link against it and call stepit_behaviors::registerNodes.
 
 add_library(stepit_behaviors SHARED
+  src/command_joint_positions.cpp
   src/follow_joint_trajectory.cpp
   src/get_active_controllers.cpp
   src/get_joint_positions.cpp
@@ -49,6 +51,7 @@ target_link_libraries(stepit_behaviors PUBLIC
   ${control_msgs_TARGETS}
   ${controller_manager_msgs_TARGETS}
   ${sensor_msgs_TARGETS}
+  ${std_msgs_TARGETS}
   ${trajectory_msgs_TARGETS})
 
 ######################################################
@@ -95,6 +98,7 @@ ament_export_dependencies(
   rclcpp
   rclcpp_action
   sensor_msgs
+  std_msgs
   trajectory_msgs)
 
 ament_package()

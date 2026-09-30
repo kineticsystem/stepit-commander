@@ -20,6 +20,7 @@
 
 #include "stepit_behaviors/register_nodes.hpp"
 
+#include "stepit_behaviors/command_joint_positions.hpp"
 #include "stepit_behaviors/follow_joint_trajectory.hpp"
 #include "stepit_behaviors/get_active_controllers.hpp"
 #include "stepit_behaviors/get_joint_positions.hpp"
@@ -40,6 +41,7 @@ void registerNodes(BT::BehaviorTreeFactory& factory, const BT::RosNodeParams& pa
   factory.registerNodeType<TrapezoidalTrajectory>("TrapezoidalTrajectory");
   factory.registerNodeType<GetJointPositions>("GetJointPositions", params);
   factory.registerNodeType<FollowJointTrajectory>("FollowJointTrajectory", params);
+  factory.registerNodeType<CommandJointPositions>("CommandJointPositions", params);
   factory.registerNodeType<GetActiveControllers>("GetActiveControllers", params);
   factory.registerNodeType<SwitchController>("SwitchController", params);
 }

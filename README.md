@@ -79,6 +79,8 @@ the objective, i.e. after the `target_tree` of the command:
 |---|---|
 | [`OffsetJointsBy`](docs/OffsetJointsBy.md) | Moves joints **by** a signed offset, relative to where they are. |
 | [`MoveJointsTo`](docs/MoveJointsTo.md) | Moves joints **to** absolute positions. |
+| [`OffsetJointsDirectlyBy`](docs/OffsetJointsDirectlyBy.md) | Like `OffsetJointsBy`, through the position controller: each joint on the microcontroller's own profile, fastest, but not synchronised. |
+| [`MoveJointsDirectlyTo`](docs/MoveJointsDirectlyTo.md) | Like `MoveJointsTo`, through the position controller: each joint on the microcontroller's own profile, fastest, but not synchronised. |
 | [`ActivateController`](docs/ActivateController.md) | Stops the controller driving the robot and activates another one. |
 | [`SpinTest`](docs/SpinTest.md) | Hardware test: joint *k* turns *k* times clockwise at 90% of the motors' limits, then all return home. |
 | [`Stack`](docs/Stack.md) | Steps joint1 and joint2 through a grid of 11 × 11 positions, 5 turns in 10 steps each, then returns every joint home; joints 3, 4 and 5 stay in place. |
@@ -151,8 +153,8 @@ colcon test --packages-select stepit_tests --event-handlers console_direct+
 
 The objective tests, e.g. `test_offset_joints_by_objective`, run the real
 objective XML and the real behaviors against a fake robot that publishes
-`/joint_states` and serves `FollowJointTrajectory`, so no hardware and no
-controller are needed.
+`/joint_states`, serves `FollowJointTrajectory` and follows the commands of the
+position controller, so no hardware and no controller are needed.
 
 > [!WARNING]
 > The fake robot uses the names of the real one. With the StepIt robot running
@@ -202,11 +204,13 @@ controller are needed.
 4. Document its parameters in `docs/<ObjectiveName>.md` and add it to the
    [Objectives](#objectives) table.
 
-The three general-purpose objectives shipped here, `OffsetJointsBy`, `MoveJointsTo` and
-`ActivateController`, are built from six behaviors and show every shape a
-behavior can take: a ROS action client (`FollowJointTrajectory`), service
-clients (`GetActiveControllers`, `SwitchController`), a subscriber
-(`GetJointPositions`) and pure logic (`OffsetVector`, `TrapezoidalTrajectory`).
+The general-purpose objectives shipped here, `OffsetJointsBy`, `MoveJointsTo`,
+their direct counterparts and `ActivateController`, are built from seven
+behaviors and show every shape a behavior can take: a ROS action client
+(`FollowJointTrajectory`), service clients (`GetActiveControllers`,
+`SwitchController`), a subscriber (`GetJointPositions`), a publisher that waits
+on a subscription (`CommandJointPositions`) and pure logic (`OffsetVector`,
+`TrapezoidalTrajectory`).
 `Steps`, a decorator that loops over values, is described below.
 
 Building a trajectory and following it are separate behaviors, and

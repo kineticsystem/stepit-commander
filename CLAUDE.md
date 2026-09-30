@@ -95,6 +95,12 @@ before changing them.
 blackboard, and `FollowJointTrajectory` sends it to the trajectory controller. Every objective
 that moves uses `TrapezoidalTrajectory` (as fast as the limits allow, 90% of the motors' by
 default); `CubicTrajectory` (one waypoint after a given duration) is kept for a timed move.
+The direct objectives, `MoveJointsDirectlyTo` and `OffsetJointsDirectlyBy`, skip the trajectory:
+`CommandJointPositions` sends every joint of `position_controller` its target (the others where
+they are) and waits on `/joint_states` until the moved ones have arrived and stopped, so the
+microcontroller plans each move alone. Faster, not synchronised. A halt deactivates
+`position_controller` (asynchronously), and `StepitHardware` sends velocity 0 to the released
+joints; never stop by sending the current positions, a moving joint brakes past them and comes back.
 
 **Tests** run the real objective XML and the real behaviors against a fake robot
 (`tests/fake/fake_robot.hpp`, `fake_controller_manager.hpp`), so no hardware and no controller

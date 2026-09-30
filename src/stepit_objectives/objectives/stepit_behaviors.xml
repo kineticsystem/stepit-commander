@@ -9,6 +9,18 @@
 -->
 <root BTCPP_format="4">
     <TreeNodesModel>
+        <Action ID="CommandJointPositions">
+            <input_port name="timeout" type="double" default="60.000000">how long the joints may take to get there, in seconds</input_port>
+            <input_port name="tolerance" type="double" default="0.010000">how close to its target a joint must be, in radians</input_port>
+            <input_port name="joint_states_topic" type="std::string" default="/joint_states">topic the joint states are published on</input_port>
+            <input_port name="positions" type="BT::AnyTypeAllowed">target positions, in radians: one for every joint, or one per joint</input_port>
+            <input_port name="joint_names" type="std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt;">joints to move</input_port>
+            <input_port name="controller_joints" type="std::vector&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt;, std::allocator&lt;std::__cxx11::basic_string&lt;char, std::char_traits&lt;char&gt;, std::allocator&lt;char&gt; &gt; &gt; &gt;">every joint of the position controller, in the order of its commands</input_port>
+            <input_port name="controller_name" type="std::string" default="position_controller">the position controller, which a halt deactivates to stop the robot</input_port>
+            <input_port name="velocity_tolerance" type="double" default="0.010000">how slow a joint must be to count as stopped, in rad/s</input_port>
+            <input_port name="switch_service" type="std::string" default="/controller_manager/switch_controller">the switch_controller service of the controller manager</input_port>
+            <input_port name="topic_name" type="std::string" default="/position_controller/commands">the commands topic of the position controller</input_port>
+        </Action>
         <Action ID="CubicTrajectory">
             <output_port name="trajectory" type="trajectory_msgs::msg::JointTrajectory_&lt;std::allocator&lt;void&gt; &gt;">the trajectory, for FollowJointTrajectory</output_port>
             <input_port name="positions" type="std::vector&lt;double, std::allocator&lt;double&gt; &gt;">absolute target positions, in radians</input_port>
