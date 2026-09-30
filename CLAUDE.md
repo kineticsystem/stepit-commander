@@ -107,6 +107,10 @@ the real robot: run them with `ROS_DOMAIN_ID=77`.
 - Every source file carries the MIT copyright header (`ament_copyright` enforces it).
 - Packages compile with `-Wall -Wextra -Wpedantic -Wshadow -Wconversion`; C++17.
 - `cpplint` runs with `--linelength=121`; `clang-format` uses the repo `.clang-format`.
+- Each objective declares its payload in a `<TreeNodesModel>` of its file, as the ports of a
+  `<SubTree>` with its ID: one `input_port` per `@key`, whose description ends with an example
+  of its value, as YAML, after `e.g.`. Editors show it; the server ignores it. Keep it in step
+  with the `{@key}` the objective reads.
 - Each objective's parameters are documented in `docs/<ObjectiveName>.md` and listed in the
   README; update both when adding or changing an objective. `TODO.md` records deferred
   decisions with the measurements behind them.

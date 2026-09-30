@@ -22,4 +22,11 @@
     <SubTree ID="EnsureControllers" controllers="{@controllers}"/>
   </BehaviorTree>
 
+  <!-- The payload of the objective, for editors: what each entry is, with an example. -->
+  <TreeNodesModel>
+    <SubTree ID="ActivateController">
+      <input_port name="controllers">the controllers to drive the robot instead of the current ones, e.g. velocity_controller or [velocity_controller]</input_port>
+    </SubTree>
+  </TreeNodesModel>
+
 </root>

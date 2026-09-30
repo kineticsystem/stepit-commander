@@ -62,4 +62,14 @@
     </Sequence>
   </BehaviorTree>
 
+  <!-- The payload of the objective, for editors: what each entry is, with an example. -->
+  <TreeNodesModel>
+    <SubTree ID="OffsetJointsBy">
+      <input_port name="joints">the joints to move, e.g. joint1 or [joint1, joint2]</input_port>
+      <input_port name="offset">how far to move them from where they are, in radians: one for every joint, or one per joint; negative turns a StepIt motor clockwise, e.g. -6.28 or [-6.28, 6.28]</input_port>
+      <input_port name="max_velocity">top speed, in rad/s: one for every joint, or one per joint; 90% of the limit of the StepIt motors, 2.7 turns/s, when left out, e.g. 12.57 or [12.57, 6.28]</input_port>
+      <input_port name="max_acceleration">acceleration, in rad/s²: one for every joint, or one per joint; 90% of the limit of the StepIt motors, 1.8 turns/s², when left out, e.g. 6.28 or [6.28, 3.14]</input_port>
+    </SubTree>
+  </TreeNodesModel>
+
 </root>

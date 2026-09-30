@@ -174,6 +174,21 @@ controller are needed.
    (`{controllers}`), so each caller can pass its own; only the objective a
    client asks for reads the payload (`{@controllers}`). See how
    `ActivateController` forwards its payload to `EnsureControllers`.
+
+   Declare the payload of the objective in a `<TreeNodesModel>` of its file,
+   as the ports of a `<SubTree>` with the objective's ID: one `input_port` per
+   entry, named after it, whose description ends with an example of its value,
+   as YAML, after `e.g.`. Editors such as the StepIt Editor show it in the Run
+   dialog; the server ignores it. A subtree declares its own ports the same
+   way, as `ensure_controllers.xml` does:
+
+   ```xml
+   <TreeNodesModel>
+     <SubTree ID="OffsetJointsBy">
+       <input_port name="joints">the joints to move, e.g. joint1 or [joint1, joint2]</input_port>
+     </SubTree>
+   </TreeNodesModel>
+   ```
 2. If it needs a new behavior, add it to `src/stepit_behaviors` and register
    it in `stepit_behaviors::registerNodes`. It is picked up automatically,
    because the whole package is loaded as one plugin. Then regenerate the node
