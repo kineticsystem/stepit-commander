@@ -23,6 +23,7 @@
 #include <cstdint>
 #include <filesystem>
 #include <map>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -44,6 +45,10 @@ namespace stepit_server
  * no link until the next build. The loader therefore also reads the folders the
  * links point to. A file with no `<BehaviorTree>`, such as the node models for
  * editors, is left out.
+ *
+ * It also records the objectives: the main tree of each file, named by the
+ * `main_tree_to_execute` attribute of its `<root>`. Any other tree is a subtree,
+ * which only runs when another tree includes it with a SubTree node.
  */
 class TreeLoader
 {
@@ -71,6 +76,12 @@ public:
   /// @brief The files with behavior trees in the folders, and in the folders their links point to.
   static std::vector<std::filesystem::path> treeFiles(const std::vector<std::filesystem::path>& folders);
 
+  /// @brief Whether the tree is an objective, the main tree of its file, as of the last load.
+  bool isObjective(const std::string& tree_id) const;
+
+  /// @brief The main tree of the file, i.e. its `main_tree_to_execute`, or empty if it has none.
+  static std::string mainTree(const std::filesystem::path& file);
+
 private:
   struct Stamp
   {
@@ -85,6 +96,7 @@ private:
 
   bool loaded_ = false;
   std::map<std::filesystem::path, Stamp> stamps_;
+  std::set<std::string> objectives_;
 };
 
 }  // namespace stepit_server

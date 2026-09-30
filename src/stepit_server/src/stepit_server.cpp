@@ -53,6 +53,14 @@ bool CommanderServer::onGoalReceived(const std::string& tree_name, const std::st
     RCLCPP_ERROR(node()->get_logger(), "Rejecting objective '%s': no behavior tree has this ID", tree_name.c_str());
     return false;
   }
+  if (!tree_loader_.isObjective(tree_name))
+  {
+    RCLCPP_ERROR(node()->get_logger(),
+                 "Rejecting objective '%s': it is a subtree, which only runs inside another tree. Make it the "
+                 "main_tree_to_execute of its file to run it on its own",
+                 tree_name.c_str());
+    return false;
+  }
 
   RCLCPP_INFO(node()->get_logger(), "Executing objective '%s' with %zu parameter(s)", tree_name.c_str(),
               payload_.size());

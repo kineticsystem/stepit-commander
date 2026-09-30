@@ -206,4 +206,43 @@ TEST_F(TreeLoaderTest, AMissingFolderLoadsNothing)
   EXPECT_TRUE(registered().empty());
 }
 
+// The main tree of each file is an objective; any other tree is a subtree,
+// which only runs inside another tree.
+TEST_F(TreeLoaderTest, TheMainTreeOfEachFileIsAnObjective)
+{
+  install("objective.xml", R"(<root BTCPP_format="4" main_tree_to_execute="Objective">)"
+                           R"(<BehaviorTree ID="Objective"><SubTree ID="Helper"/></BehaviorTree>)"
+                           R"(<BehaviorTree ID="Local"><AlwaysSuccess/></BehaviorTree></root>)");
+  install("helper.xml", tree("Helper"));
+  reload();
+
+  EXPECT_TRUE(loader_.isObjective("Objective"));
+  EXPECT_FALSE(loader_.isObjective("Local"));
+  EXPECT_FALSE(loader_.isObjective("Helper"));
+  EXPECT_FALSE(loader_.isObjective("Unknown"));
+}
+
+// Turning a subtree into an objective takes effect with the next reload.
+TEST_F(TreeLoaderTest, AnObjectiveIsKnownAgainAfterAReload)
+{
+  install("helper.xml", tree("Helper"));
+  reload();
+  EXPECT_FALSE(loader_.isObjective("Helper"));
+
+  write("helper.xml", R"(<root BTCPP_format="4" main_tree_to_execute="Helper">)"
+                      R"(<BehaviorTree ID="Helper"><AlwaysSuccess/></BehaviorTree></root>)");
+  ASSERT_TRUE(reload().reloaded);
+  EXPECT_TRUE(loader_.isObjective("Helper"));
+}
+
+// The attribute is read from the <root> tag only, not from a comment before it.
+TEST_F(TreeLoaderTest, ReadsTheMainTreeFromTheRootTag)
+{
+  write("a.xml", "<?xml version=\"1.0\"?>\n<!-- <root main_tree_to_execute=\"Commented\"> -->\n"
+                 "<root BTCPP_format='4' main_tree_to_execute='Real'><BehaviorTree ID='Real'/></root>");
+  write("b.xml", tree("B"));
+  EXPECT_EQ(TreeLoader::mainTree(source_ / "a.xml"), "Real");
+  EXPECT_EQ(TreeLoader::mainTree(source_ / "b.xml"), "");
+}
+
 }  // namespace stepit_server::test

@@ -58,6 +58,11 @@ following the links of an installed folder back to the source folder, so a new o
 runs on the next goal with no build or restart. A new behavior needs a restart: plugins are
 loaded once.
 
+**Objectives and subtrees.** Only the main tree of a file (`main_tree_to_execute` on its `<root>`)
+can be the `target_tree` of a goal: `TreeLoader` records these at each reload (`isObjective`,
+`mainTree`), and `onGoalReceived` rejects any other tree, a subtree, which only runs inside another
+tree. The StepIt Editor applies the same rule to its lists and its Run button.
+
 **Payload to blackboard.** A goal carries `target_tree` (the `<BehaviorTree>` ID) and `payload`
 (a YAML/JSON map). `parsePayload` types the values — number → `double`, other scalar →
 `std::string`, list of numbers → `std::vector<double>`, other list → `std::vector<std::string>`,
