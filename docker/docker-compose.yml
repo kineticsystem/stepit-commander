@@ -1,7 +1,7 @@
 # Definition of the development container. Driven by ./dock.sh, which supplies
 # CONTAINER_NAME and USER_UID/USER_GID.
 #
-# The settings here mirror the StepIt robot's own container so the two can
+# The settings here mirror the robot's own container so the two can
 # discover each other's ROS2 graph over DDS (see cyclonedds.xml).
 
 services:

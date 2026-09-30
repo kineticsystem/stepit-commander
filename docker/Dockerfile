@@ -1,5 +1,5 @@
 # Install Ubuntu 24.04 (ROS2 Jazzy) with user "developer", matching the
-# StepIt robot's own container so the two can discover each other's ROS2
+# robot's own container so the two can discover each other's ROS2
 # graph over DDS when both run with --network host (see cyclonedds.xml).
 
 FROM ros:jazzy-ros-base

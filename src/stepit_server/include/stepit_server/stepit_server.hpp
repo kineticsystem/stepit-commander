@@ -38,9 +38,9 @@ namespace stepit_server
 /**
  * @brief The single action server through which the robot is commanded.
  *
- * A client sends the name of an objective (a behavior tree published by
- * stepit_objectives, or by any other package listed in the parameter
- * `behavior_trees`) together with a payload holding its parameters. The payload
+ * A client sends the name of an objective (a behavior tree published by any
+ * package listed in the parameter `behavior_trees`) together with a payload
+ * holding its parameters. The payload
  * is copied into the global blackboard of the tree, where the behaviors read it
  * through the '@' prefix, e.g. {@offset}.
  */

@@ -22,6 +22,11 @@
 Start the commander action server, and rosbridge on port rosbridge_port
 (default 9090), so that web applications such as the behavior editor can run
 objectives over a WebSocket. Pass rosbridge:=false to leave rosbridge out.
+
+The server loads the behaviors and the objectives of a robot from the folders
+that params_file lists, in its parameters plugins and behavior_trees. The file
+is loaded after the server's own, config/stepit_server.yaml, so it only needs
+the parameters it changes. Without it, the server has no objective to run.
 """
 
 from launch import LaunchDescription
@@ -43,7 +48,7 @@ def generate_launch_description():
         executable="stepit_server",
         name="stepit_server",
         output="screen",
-        parameters=[parameters],
+        parameters=[parameters, LaunchConfiguration("params_file")],
     )
 
     rosbridge = IncludeLaunchDescription(
@@ -62,6 +67,11 @@ def generate_launch_description():
 
     return LaunchDescription(
         [
+            DeclareLaunchArgument(
+                "params_file",
+                default_value=parameters,
+                description="The parameters of the robot: the plugins and behavior_trees folders to load",
+            ),
             DeclareLaunchArgument(
                 "rosbridge",
                 default_value="true",
