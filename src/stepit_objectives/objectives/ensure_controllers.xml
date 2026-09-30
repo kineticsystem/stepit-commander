@@ -43,4 +43,11 @@
     </Sequence>
   </BehaviorTree>
 
+  <!-- The port of the subtree, for editors: what it takes, with an example. -->
+  <TreeNodesModel>
+    <SubTree ID="EnsureControllers">
+      <input_port name="controllers">controllers to drive the robot, e.g. velocity_controller or [joint_trajectory_controller]</input_port>
+    </SubTree>
+  </TreeNodesModel>
+
 </root>
