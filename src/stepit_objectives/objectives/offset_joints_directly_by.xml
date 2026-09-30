@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Objective: OffsetJointsDirectlyBy
+
+  Offsets one or more joints by a given amount, relative to the position they
+  have when the objective starts, through the position controller: the
+  microcontroller plans each move itself, on its own trapezoid, as fast as the
+  motors allow.
+
+    ros2 action send_goal /commander/execute_objective \
+      btcpp_ros2_interfaces/action/ExecuteTree \
+      "{target_tree: OffsetJointsDirectlyBy,
+        payload: '{joints: [joint1, joint2], offset: -6.28}'}"
+
+  It is the direct counterpart of OffsetJointsBy, which plans a trajectory and
+  sends it to the trajectory controller. The offset carries its own sign: it is
+  negative when the StepIt motors turn clockwise. The joints are not
+  synchronised, each one runs its own profile, and the limits are those of the
+  motors.
+
+  The objective succeeds once every joint is within 0.01 rad of its target and
+  has stopped. Cancelling it deactivates the position controller, and the
+  hardware brakes every joint to rest on its own profile.
+-->
+<root BTCPP_format="4" main_tree_to_execute="OffsetJointsDirectlyBy">
+
+  <BehaviorTree ID="OffsetJointsDirectlyBy" _description="Moves one or more joints by an offset from where they are, each on the microcontroller's own profile, with the position controller.">
+    <Sequence>
+
+      <!-- The targets are sent to the position controller, so make sure that
+           this is the controller driving the robot, and no other. -->
+      <SubTree ID="EnsureControllers" controllers="position_controller"/>
+
+      <!-- Where are we now? -->
+      <GetJointPositions _description="Reads where the joints are now, from /joint_states."
+                         topic_name="/joint_states"
+                         joint_names="{@joints}"
+                         positions="{current_positions}"/>
+
+      <!-- Turn the commanded offset into absolute joint targets. -->
+      <OffsetVector _description="Adds the commanded offset to the current positions, giving the absolute targets."
+                    input="{current_positions}"
+                    offset="{@offset}"
+                    output="{target_positions}"/>
+
+      <!-- The position controller takes every one of its joints, in the order
+           of robot_description/config/controllers.yaml. -->
+      <CommandJointPositions _description="Sends the joints to their targets through the position controller, and waits until they are there."
+                             topic_name="/position_controller/commands"
+                             controller_joints="joint1;joint2;joint3;joint4;joint5"
+                             joint_names="{@joints}"
+                             positions="{target_positions}"/>
+
+    </Sequence>
+  </BehaviorTree>
+
+  <!-- The payload of the objective, for editors: what each entry is, with an example. -->
+  <TreeNodesModel>
+    <SubTree ID="OffsetJointsDirectlyBy">
+      <input_port name="joints">the joints to move, e.g. joint1 or [joint1, joint2]</input_port>
+      <input_port name="offset">how far to move them from where they are, in radians: one for every joint, or one per joint; negative turns a StepIt motor clockwise, e.g. -6.28 or [-6.28, 6.28]</input_port>
+    </SubTree>
+  </TreeNodesModel>
+
+</root>
