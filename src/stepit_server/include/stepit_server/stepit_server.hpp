@@ -40,9 +40,12 @@ namespace stepit_server
  *
  * A client sends the name of an objective (a behavior tree published by any
  * package listed in the parameter `behavior_trees`) together with a payload
- * holding its parameters. The payload
- * is copied into the global blackboard of the tree, where the behaviors read it
- * through the '@' prefix, e.g. {@offset}.
+ * holding its parameters. The payload is copied into the global blackboard of
+ * the tree, where the behaviors read it through the '@' prefix, e.g. {@offset}.
+ *
+ * An objective is the main tree of its file, its `main_tree_to_execute`. A goal
+ * for any other tree, a subtree, is rejected: a subtree only runs inside
+ * another tree, which includes it with a SubTree node.
  */
 class CommanderServer : public BT::TreeExecutionServer
 {

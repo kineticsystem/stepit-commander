@@ -74,9 +74,11 @@ workspace on top of this one:
   `BT_PLUGIN_EXPORT` and installed into a folder of the package's share
   directory, e.g. `share/my_behaviors/bt_plugins`.
 - **Objectives**: BehaviorTree XML files, installed into a folder of the
-  package's share directory, e.g. `share/my_objectives/objectives`. Each
-  `<BehaviorTree>` is an objective a client can ask for by its `ID`, or a
-  subtree the others call.
+  package's share directory, e.g. `share/my_objectives/objectives`. The main
+  tree of each file, named by `main_tree_to_execute` on its `<root>`, is an
+  objective, which a client asks for by its `ID`. Any other tree is a subtree,
+  which only runs inside another tree, included with a SubTree node: the server
+  rejects a goal for a subtree.
 
 A parameter file of the robot lists these folders, as `package_name/subfolder`:
 

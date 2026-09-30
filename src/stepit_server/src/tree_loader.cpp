@@ -22,6 +22,7 @@
 
 #include <fstream>
 #include <iterator>
+#include <regex>
 #include <set>
 #include <system_error>
 #include <utility>
@@ -33,12 +34,16 @@ namespace
 
 namespace fs = std::filesystem;
 
+std::string readFile(const fs::path& file)
+{
+  std::ifstream in(file);
+  return { std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>() };
+}
+
 /// @brief Whether the file defines a tree to run, and not only e.g. node models.
 bool hasBehaviorTree(const fs::path& file)
 {
-  std::ifstream in(file);
-  const std::string text{ std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>() };
-  return text.find("<BehaviorTree") != std::string::npos;
+  return readFile(file).find("<BehaviorTree") != std::string::npos;
 }
 
 }  // namespace
@@ -90,6 +95,28 @@ std::vector<fs::path> TreeLoader::treeFiles(const std::vector<fs::path>& folders
   return { files.begin(), files.end() };
 }
 
+std::string TreeLoader::mainTree(const fs::path& file)
+{
+  // The attribute of the <root> tag, whatever comments come before it.
+  static const std::regex comment{ R"(<!--[\s\S]*?-->)" };
+  static const std::regex root{ R"(<root\b[^>]*>)" };
+  static const std::regex main{ R"(\bmain_tree_to_execute\s*=\s*["']([^"']*)["'])" };
+  const auto text = std::regex_replace(readFile(file), comment, "");
+  std::smatch tag;
+  std::smatch attribute;
+  if (!std::regex_search(text, tag, root))
+  {
+    return {};
+  }
+  const std::string root_tag = tag.str();
+  return std::regex_search(root_tag, attribute, main) ? attribute[1].str() : std::string{};
+}
+
+bool TreeLoader::isObjective(const std::string& tree_id) const
+{
+  return objectives_.count(tree_id) > 0;
+}
+
 TreeLoader::Result TreeLoader::reloadIfChanged(BT::BehaviorTreeFactory& factory, const std::vector<fs::path>& folders)
 {
   std::map<fs::path, Stamp> stamps;
@@ -126,11 +153,16 @@ TreeLoader::Result TreeLoader::reloadIfChanged(BT::BehaviorTreeFactory& factory,
   }
 
   factory.clearRegisteredBehaviorTrees();
+  objectives_.clear();
   for (const auto& [file, stamp] : stamps)
   {
     try
     {
       factory.registerBehaviorTreeFromFile(file.string());
+      if (auto main_tree = mainTree(file); !main_tree.empty())
+      {
+        objectives_.insert(std::move(main_tree));
+      }
     }
     catch (const std::exception& ex)
     {
