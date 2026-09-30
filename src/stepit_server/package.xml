@@ -19,8 +19,6 @@
   <depend>rclcpp</depend>
   <depend>yaml-cpp</depend>
 
-  <exec_depend>stepit_behaviors</exec_depend>
-  <exec_depend>stepit_objectives</exec_depend>
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
   <exec_depend>rosbridge_server</exec_depend>

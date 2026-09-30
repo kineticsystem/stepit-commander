@@ -12,11 +12,11 @@
     # How long a behavior waits for its action server or service, in ms.
     ros_plugins_timeout: 2000
 
-    # Folders, given as "package_name/subfolder", holding the behaviors to load.
-    plugins:
-      - stepit_behaviors/bt_plugins
-
-    # Folders, given as "package_name/subfolder", holding the trees to load:
-    # the objectives a client can ask for, and the subtrees they are built from.
-    behavior_trees:
-      - stepit_objectives/objectives
+    # The behaviors and the trees are the robot's, not the server's: a robot
+    # lists them in a parameter file of its own, passed to the launch file as
+    # params_file, which is loaded after this one. For example:
+    #
+    #   plugins:          # folders, as "package_name/subfolder", of behaviors
+    #     - my_behaviors/bt_plugins
+    #   behavior_trees:   # folders of trees: objectives, and their subtrees
+    #     - my_objectives/objectives

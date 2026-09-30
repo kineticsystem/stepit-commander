@@ -1,8 +1,7 @@
 # StepIt Commander
 
-A single ROS 2 action server that commands the [StepIt](https://github.com/kineticsystem/stepit-driver)
-robot by executing *objectives*, written as [BehaviorTree.CPP](https://www.behaviortree.dev)
-trees.
+A single ROS 2 action server that commands a robot by executing *objectives*,
+written as [BehaviorTree.CPP](https://www.behaviortree.dev) trees.
 
 A client never talks to a controller directly. It sends the **name** of an
 objective and a **payload** holding its parameters to one action:
@@ -10,41 +9,37 @@ objective and a **payload** holding its parameters to one action:
 ```bash
 ros2 action send_goal /commander/execute_objective \
   btcpp_ros2_interfaces/action/ExecuteTree \
-  "{target_tree: OffsetJointsBy,
-    payload: '{joints: [joint1, joint3], offset: -6.28}'}"
+  "{target_tree: MoveJointsTo,
+    payload: '{joints: [joint1, joint2], positions: [0.0, 1.57]}'}"
 ```
 
 The action server itself comes from [BehaviorTree.ROS2](https://github.com/BehaviorTree/BehaviorTree.ROS2)
-(`BT::TreeExecutionServer`): it loads every objective and every behavior found in
-the folders listed in its parameters, so a new objective is added by dropping an
-XML file into a package, without touching the server.
+(`BT::TreeExecutionServer`). It knows nothing about the robot: the behaviors
+and the objectives are the robot's, in packages of its own, and the server loads
+whatever the folders listed in its parameters hold. See
+[Plugging in a Robot](#plugging-in-a-robot).
 
 ## Table of Contents <!-- omit in toc -->
 
 - [Packages](#packages)
-- [The command](#the-command)
-- [Objectives](#objectives)
-- [Build and run](#build-and-run)
+- [The Command](#the-command)
+- [Plugging in a Robot](#plugging-in-a-robot)
+- [Build and Run](#build-and-run)
 - [Tests](#tests)
-- [Adding a new objective](#adding-a-new-objective)
 
 ## Packages
 
-Each package has one concern, and one only.
-
 | Package | Role |
 |---|---|
-| `stepit_objectives` | The objectives and the subtrees they are built from: BehaviorTree XML files, no code. `objectives/stepit_behaviors.xml` describes the behaviors for editors such as the StepIt Editor. |
-| `stepit_behaviors` | The behaviors the objectives are built from. The only place that knows the topics, actions and services of the robot. |
 | `stepit_server` | The single action server, its parameters and its launch file. It knows nothing about the robot. |
-| `stepit_tests` | Tests: the logic of the behaviors, the payload of a command, and the objectives run end to end against a fake robot. |
+| `stepit_server_tests` | Tests of the server: the payload of a command, the status it reports while a tree runs, and reading the objectives again when they change. |
 
 `BehaviorTree.ROS2` is not released as a Debian package, so it is checked out as
 a git submodule under [`modules`](modules), next to `src`. Colcon builds every
 package it finds under the workspace root, so its packages are built together
 with ours.
 
-## The command
+## The Command
 
 The goal of the action is `btcpp_ros2_interfaces/action/ExecuteTree`:
 
@@ -70,22 +65,50 @@ without any further conversion:
 | `joints: [joint1, joint2]` | `std::vector<std::string>` |
 | `positions: [0.0, 1.5]` | `std::vector<double>` |
 
-## Objectives
+## Plugging in a Robot
 
-Each objective is documented in its own file under [`docs`](docs), named after
-the objective, i.e. after the `target_tree` of the command:
+A robot provides two things, in packages of its own, usually built as a
+workspace on top of this one:
 
-| Objective | What it does |
-|---|---|
-| [`OffsetJointsBy`](docs/OffsetJointsBy.md) | Moves joints **by** a signed offset, relative to where they are. |
-| [`MoveJointsTo`](docs/MoveJointsTo.md) | Moves joints **to** absolute positions. |
-| [`OffsetJointsDirectlyBy`](docs/OffsetJointsDirectlyBy.md) | Like `OffsetJointsBy`, through the position controller: each joint on the microcontroller's own profile, fastest, but not synchronised. |
-| [`MoveJointsDirectlyTo`](docs/MoveJointsDirectlyTo.md) | Like `MoveJointsTo`, through the position controller: each joint on the microcontroller's own profile, fastest, but not synchronised. |
-| [`ActivateController`](docs/ActivateController.md) | Stops the controller driving the robot and activates another one. |
-| [`SpinTest`](docs/SpinTest.md) | Hardware test: joint *k* turns *k* times clockwise at 90% of the motors' limits, then all return home. |
-| [`Stack`](docs/Stack.md) | Steps joint1 and joint2 through a grid of 11 × 11 positions, 5 turns in 10 steps each, then returns every joint home; joints 3, 4 and 5 stay in place. |
+- **Behaviors**: C++ nodes, exported as a BehaviorTree.CPP plugin with
+  `BT_PLUGIN_EXPORT` and installed into a folder of the package's share
+  directory, e.g. `share/my_behaviors/bt_plugins`.
+- **Objectives**: BehaviorTree XML files, installed into a folder of the
+  package's share directory, e.g. `share/my_objectives/objectives`. Each
+  `<BehaviorTree>` is an objective a client can ask for by its `ID`, or a
+  subtree the others call.
 
-## Build and run
+A parameter file of the robot lists these folders, as `package_name/subfolder`:
+
+```yaml
+/**:
+  ros__parameters:
+    plugins:
+      - my_behaviors/bt_plugins
+    behavior_trees:
+      - my_objectives/objectives
+```
+
+and is passed to the launch file, which loads it after the server's own
+[`stepit_server.yaml`](src/stepit_server/config/stepit_server.yaml):
+
+```bash
+ros2 launch stepit_server commander.launch.py params_file:=/path/to/robot.yaml
+```
+
+The server reads the XML files again before each goal whenever one was added,
+changed or removed, also following the links of an installed folder back to its
+source when the package was built with `--symlink-install`, so a new or edited
+objective runs on the next goal, with no build and no restart. A new behavior
+needs a build, and a restart of the server, which loads the plugins once.
+
+Editors such as the [StepIt Editor](https://github.com/kineticsystem/stepit-editor)
+describe the payload of an objective from a `<TreeNodesModel>` of its file,
+declaring it as the ports of a `<SubTree>` with the objective's ID: one
+`input_port` per entry, whose description ends with an example of its value,
+after `e.g.`. The server ignores it.
+
+## Build and Run
 
 Check out the repository including its submodules:
 
@@ -115,29 +138,18 @@ Inside the container, install the dependencies and build:
 ./bin/build.sh     # colcon build
 ```
 
-Start the StepIt robot in its own container, as described in its README, then
-start the commander:
+Then start the server, with the parameter file of the robot, after sourcing the
+workspace that holds its behaviors and objectives:
 
 ```bash
 source install/setup.bash
-ros2 launch stepit_server commander.launch.py
-```
-
-From another shell in the container, rotate `joint1` and `joint3` by one turn
-clockwise:
-
-```bash
-source install/setup.bash
-ros2 action send_goal /commander/execute_objective \
-  btcpp_ros2_interfaces/action/ExecuteTree \
-  "{target_tree: OffsetJointsBy,
-    payload: '{joints: [joint1, joint3], offset: -6.28}'}"
+source /path/to/robot_ws/install/setup.bash
+ros2 launch stepit_server commander.launch.py params_file:=/path/to/robot.yaml
 ```
 
 The commander also starts rosbridge, so that web applications such as the
-[StepIt Editor](https://github.com/kineticsystem/stepit-editor) can run
-objectives. It listens on port 9090: change it with `rosbridge_port:=<port>`,
-or leave rosbridge out with `rosbridge:=false`.
+StepIt Editor can run objectives. It listens on port 9090: change it with
+`rosbridge_port:=<port>`, or leave rosbridge out with `rosbridge:=false`.
 
 ## Tests
 
@@ -145,112 +157,5 @@ or leave rosbridge out with `rosbridge:=false`.
 ./bin/test.sh
 ```
 
-or, for this project alone:
-
-```bash
-colcon test --packages-select stepit_tests --event-handlers console_direct+
-```
-
-The objective tests, e.g. `test_offset_joints_by_objective`, run the real
-objective XML and the real behaviors against a fake robot that publishes
-`/joint_states`, serves `FollowJointTrajectory` and follows the commands of the
-position controller, so no hardware and no controller are needed.
-
-> [!WARNING]
-> The fake robot uses the names of the real one. With the StepIt robot running
-> on the same network and ROS domain, the tests read its joint states, switch
-> its controllers and **move it**. Run them on a domain of their own:
->
-> ```bash
-> ROS_DOMAIN_ID=77 ./bin/test.sh
-> ```
-
-## Adding a new objective
-
-1. Write the XML in `src/stepit_objectives/objectives`. Nothing else to do:
-   the folder is already loaded by the server, which reads the files again
-   before each goal whenever one was added, changed or removed, so the next
-   goal runs it, with no build and no restart. A step that more than one
-   objective needs goes in a tree of its own, in the same folder, called with
-   `<SubTree ID="..."/>`. Such a subtree takes its parameters from ports
-   (`{controllers}`), so each caller can pass its own; only the objective a
-   client asks for reads the payload (`{@controllers}`). See how
-   `ActivateController` forwards its payload to `EnsureControllers`.
-
-   Declare the payload of the objective in a `<TreeNodesModel>` of its file,
-   as the ports of a `<SubTree>` with the objective's ID: one `input_port` per
-   entry, named after it, whose description ends with an example of its value,
-   as YAML, after `e.g.`. Editors such as the StepIt Editor show it in the Run
-   dialog; the server ignores it. A subtree declares its own ports the same
-   way, as `ensure_controllers.xml` does:
-
-   ```xml
-   <TreeNodesModel>
-     <SubTree ID="OffsetJointsBy">
-       <input_port name="joints">the joints to move, e.g. joint1 or [joint1, joint2]</input_port>
-     </SubTree>
-   </TreeNodesModel>
-   ```
-2. If it needs a new behavior, add it to `src/stepit_behaviors` and register
-   it in `stepit_behaviors::registerNodes`. It is picked up automatically,
-   because the whole package is loaded as one plugin. Then regenerate the node
-   models that editors such as the StepIt Editor read (`test_nodes_model` fails
-   until you do):
-
-   ```bash
-   ros2 run stepit_behaviors write_nodes_model src/stepit_objectives/objectives/stepit_behaviors.xml
-   ```
-3. Add a test to `src/stepit_tests`.
-4. Document its parameters in `docs/<ObjectiveName>.md` and add it to the
-   [Objectives](#objectives) table.
-
-The general-purpose objectives shipped here, `OffsetJointsBy`, `MoveJointsTo`,
-their direct counterparts and `ActivateController`, are built from seven
-behaviors and show every shape a behavior can take: a ROS action client
-(`FollowJointTrajectory`), service clients (`GetActiveControllers`,
-`SwitchController`), a subscriber (`GetJointPositions`), a publisher that waits
-on a subscription (`CommandJointPositions`) and pure logic (`OffsetVector`,
-`TrapezoidalTrajectory`).
-`Steps`, a decorator that loops over values, is described below.
-
-Building a trajectory and following it are separate behaviors, and
-`FollowJointTrajectory` sends whatever trajectory it is given to the
-controller. Two nodes build one:
-
-- `CubicTrajectory`: a single waypoint, reached at rest after a given
-  duration. The controller joins it with a cubic, which reaches its peak
-  acceleration only at the start and the end, and its top speed only halfway.
-  No objective uses it; it is there for a move that must take a given time.
-- `TrapezoidalTrajectory`: as fast as the limits allow, 2.7 turns/s and
-  1.8 turns/s² by default, 90% of those of the StepIt motors: at 100% the
-  motors trail their commands and arrive late. Each joint accelerates at
-  the limit, cruises at top speed and brakes at the limit; all joints start and
-  stop together. It needs the positions the joints start from, e.g. from
-  `GetJointPositions`. Every objective that moves the robot uses it.
-
-To repeat a move over a series of positions, e.g. to take a photo at each
-step of a focus stack, `Steps` ticks its child once per value, and writes the
-value to the blackboard for the child to use:
-
-- `start`, `end` and `count`: `count` values evenly spaced from `start` to
-  `end`, both included; each a number, or a list with one per joint, stepped
-  together.
-- or `values`: a list of numbers, one per iteration, for a single joint, e.g.
-  unevenly spaced.
-
-The value is always a list, as `TrapezoidalTrajectory` expects, and `index`
-numbers the iterations from 0. `Steps` fails as soon as its child fails, and
-starts again from its first value every time it runs, so nesting two makes a
-grid, the inner one going through all its values at each value of the outer
-one:
-
-```xml
-<Steps start="{@joint1_start}" end="{@joint1_end}" count="{@joint1_count}" value="{joint1_value}">
-  <Sequence>
-    <!-- move joint1 to {joint1_value} -->
-    <Steps values="{@joint2_values}" value="{joint2_value}" index="{shot}">
-      <!-- move joint2 to {joint2_value}, then take a photo -->
-    </Steps>
-  </Sequence>
-</Steps>
-```
+The tests of the server need no robot. [`TODO.md`](TODO.md) records the
+decisions deferred about the server, and what we knew when deferring them.
