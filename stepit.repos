@@ -1,0 +1,9 @@
+# The upstream workspace of industrial_ci, see .github/workflows/industrial_ci.yml.
+# BehaviorTree.ROS2 is a git submodule, which industrial_ci does not check out:
+# it imports it from here instead, at the commit the submodule records. Update
+# both together.
+repositories:
+  BehaviorTree.ROS2:
+    type: git
+    url: https://github.com/BehaviorTree/BehaviorTree.ROS2.git
+    version: 6c6aa078ee7bc52fec98984bed4964556abf5beb

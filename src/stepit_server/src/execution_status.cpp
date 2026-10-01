@@ -33,8 +33,7 @@ ExecutionStatus::ExecutionStatus(const BT::Tree& tree, std::chrono::milliseconds
 {
 }
 
-void ExecutionStatus::callback(BT::Duration, const BT::TreeNode& node, BT::NodeStatus prev_status,
-                               BT::NodeStatus status)
+void ExecutionStatus::callback(BT::Duration, const BT::TreeNode& node, BT::NodeStatus prev_status, BT::NodeStatus status)
 {
   if (status != BT::NodeStatus::IDLE)
   {
