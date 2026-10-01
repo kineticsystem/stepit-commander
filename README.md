@@ -1,5 +1,9 @@
 # StepIt Commander
 
+[![CI](https://github.com/kineticsystem/stepit-commander/actions/workflows/industrial_ci.yml/badge.svg)](https://github.com/kineticsystem/stepit-commander/actions/workflows/industrial_ci.yml)
+[![Format](https://github.com/kineticsystem/stepit-commander/actions/workflows/ci-format.yml/badge.svg)](https://github.com/kineticsystem/stepit-commander/actions/workflows/ci-format.yml)
+[![Linters](https://github.com/kineticsystem/stepit-commander/actions/workflows/ci-ros-lint.yml/badge.svg)](https://github.com/kineticsystem/stepit-commander/actions/workflows/ci-ros-lint.yml)
+
 A single ROS 2 action server that commands a robot by executing *objectives*,
 written as [BehaviorTree.CPP](https://www.behaviortree.dev) trees.
 
@@ -27,6 +31,7 @@ whatever the folders listed in its parameters hold. See
 - [Plugging in a Robot](#plugging-in-a-robot)
 - [Build and Run](#build-and-run)
 - [Tests](#tests)
+- [Continuous Integration](#continuous-integration)
 
 ## Packages
 
@@ -190,3 +195,24 @@ StepIt Editor can run objectives. It listens on port 9090: change it with
 
 The tests of the server need no robot. [`TODO.md`](TODO.md) records the
 decisions deferred about the server, and what we knew when deferring them.
+
+## Continuous Integration
+
+Three GitHub Actions workflows run on every push and pull request, as in StepIt
+Driver:
+
+| Workflow | What it checks |
+|---|---|
+| [`industrial_ci.yml`](.github/workflows/industrial_ci.yml) | Builds and tests the packages with [Industrial CI](https://github.com/ros-industrial/industrial_ci), against the main and the testing ROS repositories. |
+| [`ci-format.yml`](.github/workflows/ci-format.yml) | The pre-commit hooks that need no ROS: clang-format, black, codespell, and the checks of whitespace and files. |
+| [`ci-ros-lint.yml`](.github/workflows/ci-ros-lint.yml) | The ament linters of every package: copyright, lint_cmake and cpplint. |
+
+Industrial CI does not check out submodules: it imports BehaviorTree.ROS2 from
+[`stepit.repos`](stepit.repos), at the commit the submodule records. **Update
+both together** when moving the submodule.
+
+The workflows run locally with [Nektos `act`](https://github.com/nektos/act),
+which reads the variables of [`.env`](.env), from a clean checkout: Industrial
+CI mounts the working tree, `build` and `install` included. See
+[How to run GitHub Actions locally](https://github.com/kineticsystem/stepit-driver#how-to-run-github-actions-locally)
+in the README of StepIt Driver.

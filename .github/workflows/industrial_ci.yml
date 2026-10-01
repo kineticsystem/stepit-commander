@@ -1,0 +1,19 @@
+name: CI/CD
+
+on: [push, pull_request]
+
+jobs:
+  industrial_ci:
+    strategy:
+      matrix:
+        env:
+          - { ROS_DISTRO: jazzy, ROS_REPO: testing }
+          - { ROS_DISTRO: jazzy, ROS_REPO: main }
+    env:
+      # BehaviorTree.ROS2, which is a submodule, see stepit.repos.
+      UPSTREAM_WORKSPACE: stepit.repos
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: "ros-industrial/industrial_ci@master"
+        env: ${{matrix.env}}
