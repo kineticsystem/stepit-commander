@@ -20,7 +20,9 @@
 
 #pragma once
 
+#include <atomic>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <vector>
@@ -46,6 +48,11 @@ namespace stepit_server
  * An objective is the main tree of its file, its `main_tree_to_execute`. A goal
  * for any other tree, a subtree, is rejected: a subtree only runs inside
  * another tree, which includes it with a SubTree node.
+ *
+ * With the parameter `preempt` true, the default, a goal accepted while an
+ * objective runs replaces it: the running tree is halted at its next tick and
+ * its goal aborted, and the new objective starts. With `preempt` false, the new
+ * goal waits for the running objective to end.
  */
 class CommanderServer : public BT::TreeExecutionServer
 {
@@ -63,7 +70,8 @@ protected:
   /// @brief Publish the parameters of the command into the global blackboard.
   void onTreeCreated(BT::Tree& tree) override;
 
-  /// @brief Remember whether the tick ended the tree, for onLoopFeedback.
+  /// @brief Remember whether the tick ended the tree, for onLoopFeedback, and
+  /// end it if a new goal preempts it.
   std::optional<BT::NodeStatus> onLoopAfterTick(BT::NodeStatus status) override;
 
   /// @brief The status of the nodes that changed, see ExecutionStatus.
@@ -84,6 +92,20 @@ private:
   std::unique_ptr<ExecutionStatus> execution_status_;
   /// @brief The status of the last tick.
   BT::NodeStatus tick_status_ = BT::NodeStatus::IDLE;
+
+  /// @brief Whether a new goal replaces the running objective, the parameter `preempt`.
+  bool preempt_;
+  /// @brief Whether an objective is running: set when its tree is created, cleared when it ends.
+  /// A tree that throws ends without onTreeExecutionCompleted, leaving it set: the next goal then
+  /// logs a preemption of nothing, and onTreeCreated clears the request.
+  std::atomic<bool> running_{ false };
+  /// @brief Set by a new goal, read by the running tree's loop, which then ends it.
+  std::atomic<bool> preempt_requested_{ false };
+  /// @brief Whether the running tree is ending because it was preempted.
+  bool preempted_ = false;
+  /// @brief The objective that preempts the running one, for the result of the latter.
+  std::mutex preempting_mutex_;
+  std::string preempting_objective_;
 };
 
 }  // namespace stepit_server

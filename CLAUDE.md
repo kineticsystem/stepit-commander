@@ -72,8 +72,18 @@ the **global** blackboard, which is why objectives reference them with the `@` p
 (`{current_positions}`). `CommanderServer::onTreeCreated` unsets the previous goal's keys first;
 a payload that is not a map of scalars and lists is rejected before the tree is created.
 
+**Preemption.** With the parameter `preempt` true, the default, a goal accepted while an objective
+runs replaces it. BehaviorTree.ROS2 (third party: never change it) accepts the goal and then waits
+for the running tree's thread, so `CommanderServer` ends that tree through its own hooks:
+`onGoalReceived` raises `preempt_requested_` if a tree is `running_`, the running tree's
+`onLoopAfterTick` returns `FAILURE`, which makes the server halt it and abort its goal, and
+`onTreeExecutionCompleted` gives the message. `onTreeCreated` clears the request, which was meant
+for the previous tree.
+
 **Tests** of the server need no robot: they exercise the payload, the execution status and the
-tree loader directly.
+tree loader directly, and run the real server for preemption (`test_preemption`). A
+`TreeExecutionServer` that ran a goal cannot be destroyed (its destructor does not join its thread),
+so that test keeps its servers alive, each on an action and a Groot2 port of its own.
 
 ## Conventions
 

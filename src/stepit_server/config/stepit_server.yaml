@@ -12,6 +12,11 @@
     # How long a behavior waits for its action server or service, in ms.
     ros_plugins_timeout: 2000
 
+    # A goal sent while an objective runs replaces it: the running tree is
+    # halted at its next tick, its goal aborted, and the new objective starts.
+    # With false, the new goal waits for the running objective to end.
+    preempt: true
+
     # The behaviors and the trees are the robot's, not the server's: a robot
     # lists them in a parameter file of its own, passed to the launch file as
     # params_file, which is loaded after this one. For example:
