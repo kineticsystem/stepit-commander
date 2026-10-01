@@ -89,7 +89,7 @@ so that test keeps its servers alive, each on an action and a Groot2 port of its
 
 `.github/workflows`, as in StepIt Driver: `industrial_ci.yml` builds and tests (jazzy, main and
 testing), `ci-format.yml` runs pre-commit without the ament hooks, `ci-ros-lint.yml` runs those per
-package; a new package must be added to its `package-name` lists. Industrial CI imports
+package; a new package must be added to its package list. Industrial CI imports
 BehaviorTree.ROS2 from `stepit.repos`, pinned to the commit of the submodule: move both together.
 
 ## Conventions
