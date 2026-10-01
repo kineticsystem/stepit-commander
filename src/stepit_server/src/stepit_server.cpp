@@ -32,6 +32,7 @@ namespace stepit_server
 
 CommanderServer::CommanderServer(const rclcpp::NodeOptions& options) : BT::TreeExecutionServer(options)
 {
+  preempt_ = node()->declare_parameter<bool>("preempt", true);
 }
 
 bool CommanderServer::onGoalReceived(const std::string& tree_name, const std::string& payload)
@@ -60,6 +61,18 @@ bool CommanderServer::onGoalReceived(const std::string& tree_name, const std::st
                  "main_tree_to_execute of its file to run it on its own",
                  tree_name.c_str());
     return false;
+  }
+
+  // The server waits for the running objective to end before it starts this
+  // one: have the running tree end at its next tick.
+  if (preempt_ && running_)
+  {
+    {
+      const std::lock_guard<std::mutex> lock{ preempting_mutex_ };
+      preempting_objective_ = tree_name;
+    }
+    preempt_requested_ = true;
+    RCLCPP_INFO(node()->get_logger(), "Objective '%s' preempts the running objective", tree_name.c_str());
   }
 
   RCLCPP_INFO(node()->get_logger(), "Executing objective '%s' with %zu parameter(s)", tree_name.c_str(),
@@ -114,11 +127,23 @@ void CommanderServer::onTreeCreated(BT::Tree& tree)
   logger_ = std::make_shared<BT::StdCoutLogger>(tree);
   execution_status_ = std::make_unique<ExecutionStatus>(tree);
   tick_status_ = BT::NodeStatus::IDLE;
+
+  // A request made while the previous tree was ending was meant for that tree:
+  // the server created this one only once the previous one had ended.
+  preempt_requested_ = false;
+  preempted_ = false;
+  running_ = true;
 }
 
 std::optional<BT::NodeStatus> CommanderServer::onLoopAfterTick(BT::NodeStatus status)
 {
   tick_status_ = status;
+  if (status == BT::NodeStatus::RUNNING && preempt_requested_.exchange(false))
+  {
+    // The server halts the tree and aborts its goal.
+    preempted_ = true;
+    return BT::NodeStatus::FAILURE;
+  }
   return std::nullopt;
 }
 
@@ -133,8 +158,14 @@ std::optional<std::string> CommanderServer::onLoopFeedback()
 
 std::optional<std::string> CommanderServer::onTreeExecutionCompleted(BT::NodeStatus, bool)
 {
+  running_ = false;
   logger_.reset();
   execution_status_.reset();
+  if (preempted_)
+  {
+    const std::lock_guard<std::mutex> lock{ preempting_mutex_ };
+    return "Preempted by objective '" + preempting_objective_ + "'";
+  }
   return std::nullopt;
 }
 

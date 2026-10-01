@@ -23,6 +23,7 @@ whatever the folders listed in its parameters hold. See
 
 - [Packages](#packages)
 - [The Command](#the-command)
+  - [One Objective at a Time](#one-objective-at-a-time)
 - [Plugging in a Robot](#plugging-in-a-robot)
 - [Build and Run](#build-and-run)
 - [Tests](#tests)
@@ -32,7 +33,7 @@ whatever the folders listed in its parameters hold. See
 | Package | Role |
 |---|---|
 | `stepit_server` | The single action server, its parameters and its launch file. It knows nothing about the robot. |
-| `stepit_server_tests` | Tests of the server: the payload of a command, the status it reports while a tree runs, and reading the objectives again when they change. |
+| `stepit_server_tests` | Tests of the server: the payload of a command, the status it reports while a tree runs, reading the objectives again when they change, and a new goal replacing the running objective. |
 
 `BehaviorTree.ROS2` is not released as a Debian package, so it is checked out as
 a git submodule under [`modules`](modules), next to `src`. Colcon builds every
@@ -64,6 +65,34 @@ without any further conversion:
 | `controllers: '5'` (quoted) | `std::string` |
 | `joints: [joint1, joint2]` | `std::vector<std::string>` |
 | `positions: [0.0, 1.5]` | `std::vector<double>` |
+
+### One Objective at a Time
+
+The server runs one objective at a time. **A goal sent while an objective runs
+replaces it**: the running tree is halted at its next tick, at most 10 ms
+later, which stops whatever its behaviors were doing, its goal ends as aborted
+with the message `Preempted by objective '<name>'`, and the new objective
+starts. Asking for something else is therefore enough to stop the robot, e.g.
+from a gamepad or a Stop button that runs an objective of its own.
+
+To make a new goal wait for the running objective to end instead, set the
+parameter `preempt` to `false` in the robot's parameter file:
+
+```yaml
+/**:
+  ros__parameters:
+    preempt: false
+```
+
+To stop the running objective without starting another one, cancel every goal
+of the action, whoever sent it, e.g. from the command line:
+
+```bash
+ros2 service call /commander/execute_objective/_action/cancel_goal \
+  action_msgs/srv/CancelGoal "{}"
+```
+
+A client can also cancel its own goal, as the StepIt Editor's Stop button does.
 
 ## Plugging in a Robot
 

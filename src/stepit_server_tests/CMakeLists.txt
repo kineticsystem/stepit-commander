@@ -16,6 +16,9 @@ if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
   find_package(behaviortree_cpp REQUIRED)
   find_package(stepit_server REQUIRED)
+  find_package(btcpp_ros2_interfaces REQUIRED)
+  find_package(rclcpp REQUIRED)
+  find_package(rclcpp_action REQUIRED)
 
   # Reading the objectives again when they change.
   ament_add_gtest(test_tree_loader tests/test_tree_loader.cpp)
@@ -28,6 +31,14 @@ if(BUILD_TESTING)
   # The payload of a command.
   ament_add_gtest(test_payload tests/test_payload.cpp)
   target_link_libraries(test_payload stepit_server::stepit_server)
+
+  # A new goal replacing the running objective, against the real server.
+  ament_add_gtest(test_preemption tests/test_preemption.cpp TIMEOUT 120)
+  target_link_libraries(test_preemption
+    stepit_server::stepit_server
+    rclcpp::rclcpp
+    rclcpp_action::rclcpp_action
+    ${btcpp_ros2_interfaces_TARGETS})
 endif()
 
 ament_package()
