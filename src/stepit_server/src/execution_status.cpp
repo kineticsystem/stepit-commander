@@ -21,6 +21,7 @@
 #include "stepit_server/execution_status.hpp"
 
 #include <string>
+#include <utility>
 
 #include <behaviortree_cpp/contrib/json.hpp>
 #include <behaviortree_cpp/xml_parsing.h>
@@ -31,6 +32,16 @@ namespace stepit_server
 ExecutionStatus::ExecutionStatus(const BT::Tree& tree, std::chrono::milliseconds period)
   : BT::StatusChangeLogger(tree.rootNode()), tree_xml_(BT::WriteTreeToXML(tree, true, false)), period_(period)
 {
+  for (const auto& subtree : tree.subtrees)
+  {
+    for (const auto& node : subtree->nodes)
+    {
+      if (const auto* reporter = dynamic_cast<const ProgressReporter*>(node.get()))
+      {
+        reporters_.emplace_back(node.get(), reporter);
+      }
+    }
+  }
 }
 
 void ExecutionStatus::callback(BT::Duration, const BT::TreeNode& node, BT::NodeStatus prev_status, BT::NodeStatus status)
@@ -49,7 +60,32 @@ void ExecutionStatus::callback(BT::Duration, const BT::TreeNode& node, BT::NodeS
 
 std::optional<std::string> ExecutionStatus::feedback(bool finished, Clock::time_point now)
 {
-  if (tree_sent_ && (changes_.empty() || (!finished && now - last_sent_ < period_)))
+  if (tree_sent_ && !finished && now - last_sent_ < period_)
+  {
+    return std::nullopt;
+  }
+
+  // The progress of the running reporters, where it changed since it was sent.
+  nlohmann::json progress = nlohmann::json::object();
+  for (const auto& [node, reporter] : reporters_)
+  {
+    const auto uid = node->UID();
+    const auto current = node->status() == BT::NodeStatus::RUNNING ? reporter->progress() : std::nullopt;
+    if (!current)
+    {
+      progress_sent_.erase(uid);
+      continue;
+    }
+    const std::pair<double, double> value{ current->done, current->total };
+    const auto sent = progress_sent_.find(uid);
+    if (sent == progress_sent_.end() || sent->second != value)
+    {
+      progress[std::to_string(uid)] = { { "done", value.first }, { "total", value.second } };
+      progress_sent_[uid] = value;
+    }
+  }
+
+  if (tree_sent_ && changes_.empty() && progress.empty())
   {
     return std::nullopt;
   }
@@ -64,6 +100,10 @@ std::optional<std::string> ExecutionStatus::feedback(bool finished, Clock::time_
   for (const auto& [uid, status] : changes_)
   {
     nodes[std::to_string(uid)] = status;
+  }
+  if (!progress.empty())
+  {
+    message["progress"] = std::move(progress);
   }
   changes_.clear();
   last_sent_ = now;

@@ -48,6 +48,16 @@ target_link_libraries(stepit_server PUBLIC
   ${YAML_CPP_TARGET})
 
 ######################################################
+# The interface of a node that reports its progress, header only, for the
+# plugins: they implement it without linking against the server.
+
+add_library(progress INTERFACE)
+
+target_include_directories(progress INTERFACE
+  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+  $<INSTALL_INTERFACE:include>)
+
+######################################################
 # The node.
 
 add_executable(stepit_server_node src/main.cpp)
@@ -59,7 +69,7 @@ target_link_libraries(stepit_server_node PRIVATE stepit_server)
 
 install(DIRECTORY include/ DESTINATION include)
 
-install(TARGETS stepit_server
+install(TARGETS stepit_server progress
   EXPORT export_stepit_server
   LIBRARY DESTINATION lib
   ARCHIVE DESTINATION lib

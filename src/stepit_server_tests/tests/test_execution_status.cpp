@@ -21,11 +21,13 @@
 #include <gtest/gtest.h>
 
 #include <chrono>
+#include <optional>
 #include <string>
 
 #include <behaviortree_cpp/bt_factory.h>
 #include <behaviortree_cpp/contrib/json.hpp>
 #include <stepit_server/execution_status.hpp>
+#include <stepit_server/progress.hpp>
 
 namespace stepit_server::test
 {
@@ -193,6 +195,129 @@ TEST(ExecutionStatus, AHaltedNodeIsReportedAsHalted)
 
   const auto message = nlohmann::json::parse(status.feedback(true, start + 10ms).value());
   EXPECT_EQ(message.at("nodes"), (nlohmann::json{ { "1", "FAILURE" }, { "2", "FAILURE" }, { "3", "HALTED" } }));
+}
+
+namespace
+{
+
+/// @brief Runs for three ticks, reporting how many it has done.
+class Count : public BT::StatefulActionNode, public ProgressReporter
+{
+public:
+  using BT::StatefulActionNode::StatefulActionNode;
+
+  static BT::PortsList providedPorts()
+  {
+    return {};
+  }
+
+  BT::NodeStatus onStart() override
+  {
+    ticks_ = 0;
+    return BT::NodeStatus::RUNNING;
+  }
+
+  BT::NodeStatus onRunning() override
+  {
+    return ++ticks_ == 3 ? BT::NodeStatus::SUCCESS : BT::NodeStatus::RUNNING;
+  }
+
+  void onHalted() override
+  {
+  }
+
+  std::optional<Progress> progress() const override
+  {
+    return Progress{ static_cast<double>(ticks_), 3.0 };
+  }
+
+private:
+  int ticks_ = 0;
+};
+
+class ExecutionProgressTest : public testing::Test
+{
+protected:
+  void SetUp() override
+  {
+    factory_.registerNodeType<Count>("Count");
+    factory_.registerNodeType<Wait>("Wait");
+    // uids: 1 Sequence, 2 Count, 3 Wait.
+    tree_ = factory_.createTreeFromText(R"(
+      <root BTCPP_format="4">
+        <BehaviorTree ID="Main">
+          <Sequence>
+            <Count/>
+            <Wait/>
+          </Sequence>
+        </BehaviorTree>
+      </root>)");
+  }
+
+  BT::BehaviorTreeFactory factory_;
+  BT::Tree tree_;
+  ExecutionStatus::Clock::time_point start_ = ExecutionStatus::Clock::now();
+};
+
+}  // namespace
+
+TEST_F(ExecutionProgressTest, ARunningReporterSendsItsProgress)
+{
+  ExecutionStatus status(tree_);
+  ASSERT_EQ(tree_.tickExactlyOnce(), BT::NodeStatus::RUNNING);
+
+  const auto message = nlohmann::json::parse(status.feedback(false, start_).value());
+  EXPECT_EQ(message.at("progress"), (nlohmann::json{ { "2", { { "done", 0.0 }, { "total", 3.0 } } } }));
+}
+
+// A motion runs for many ticks without changing status: its progress alone
+// must make a message, or the client sees it only when it ends.
+TEST_F(ExecutionProgressTest, AChangedProgressIsSentWithoutAChangedStatus)
+{
+  ExecutionStatus status(tree_, 50ms);
+  tree_.tickExactlyOnce();
+  status.feedback(false, start_);
+
+  tree_.tickExactlyOnce();
+  EXPECT_FALSE(status.feedback(false, start_ + 10ms).has_value()) << "once per period";
+  const auto message = nlohmann::json::parse(status.feedback(false, start_ + 50ms).value());
+  EXPECT_TRUE(message.at("nodes").empty());
+  EXPECT_EQ(message.at("progress"), (nlohmann::json{ { "2", { { "done", 1.0 }, { "total", 3.0 } } } }));
+}
+
+TEST_F(ExecutionProgressTest, AnUnchangedProgressIsNotSentAgain)
+{
+  ExecutionStatus status(tree_);
+  tree_.tickExactlyOnce();
+  status.feedback(false, start_);
+
+  EXPECT_FALSE(status.feedback(false, start_ + 1s).has_value());
+}
+
+TEST_F(ExecutionProgressTest, AnEndedReporterSendsNoProgress)
+{
+  ExecutionStatus status(tree_);
+  for (int i = 0; i < 4; ++i)
+  {
+    tree_.tickExactlyOnce();
+  }
+  ASSERT_EQ(tree_.rootNode()->status(), BT::NodeStatus::RUNNING) << "Wait runs";
+
+  const auto message = nlohmann::json::parse(status.feedback(false, start_).value());
+  EXPECT_FALSE(message.contains("progress"));
+  EXPECT_EQ(message.at("nodes").at("2"), "SUCCESS");
+}
+
+TEST(ExecutionStatus, ANodeWithoutProgressSendsNone)
+{
+  BT::BehaviorTreeFactory factory;
+  factory.registerNodeType<Wait>("Wait");
+  auto tree = factory.createTreeFromText(R"(
+    <root BTCPP_format="4"><BehaviorTree ID="Main"><Wait/></BehaviorTree></root>)");
+  ExecutionStatus status(tree);
+  tree.tickExactlyOnce();
+
+  EXPECT_FALSE(nlohmann::json::parse(status.feedback(false).value()).contains("progress"));
 }
 
 }  // namespace stepit_server::test
