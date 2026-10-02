@@ -25,9 +25,13 @@
 #include <map>
 #include <optional>
 #include <string>
+#include <utility>
+#include <vector>
 
 #include <behaviortree_cpp/bt_factory.h>
 #include <behaviortree_cpp/loggers/abstract_logger.h>
+
+#include "stepit_server/progress.hpp"
 
 namespace stepit_server
 {
@@ -38,7 +42,8 @@ namespace stepit_server
  *
  * Each feedback message is a JSON object:
  *
- *     {"tree": "<root ...>...</root>", "nodes": {"3": "RUNNING", "4": "FAILURE"}}
+ *     {"tree": "<root ...>...</root>", "nodes": {"3": "RUNNING", "4": "FAILURE"},
+ *      "progress": {"3": {"done": 2, "total": 11}}}
  *
  * - `tree`, in the first message only: the tree being executed, as written by
  *   BT::WriteTreeToXML, every subtree expanded into a `<BehaviorTree>` of its own
@@ -48,8 +53,12 @@ namespace stepit_server
  *   HALTED for a node stopped while running, e.g. by a reactive parent. A node
  *   going back to IDLE after it ended, when its parent resets it, keeps the
  *   status it had, so that the client can show how each node ended.
+ * - `progress`, only when one changed: the running nodes that implement
+ *   ProgressReporter and whose progress changed since the previous message,
+ *   by `_uid`. A node reports none before it runs, nor once it ended.
  *
- * The changes are sent at most once per period, and always after the last tick.
+ * The changes, of status or of progress, are sent at most once per period, and
+ * always after the last tick.
  */
 class ExecutionStatus : public BT::StatusChangeLogger
 {
@@ -79,6 +88,10 @@ private:
   Clock::time_point last_sent_;
   /// @brief The last status of the nodes that changed, as sent: see above.
   std::map<std::uint16_t, std::string> changes_;
+  /// @brief The nodes of the tree that report their progress.
+  std::vector<std::pair<const BT::TreeNode*, const ProgressReporter*>> reporters_;
+  /// @brief The last progress sent of each running reporter.
+  std::map<std::uint16_t, std::pair<double, double>> progress_sent_;
 };
 
 }  // namespace stepit_server
