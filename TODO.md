@@ -19,7 +19,7 @@ Committing from inside the container is the intended path: it has `pre-commit`,
 
 ### 2. No CI
 
-StepIt Driver has three GitHub Actions workflows (industrial_ci, format,
+StepIt Motors has three GitHub Actions workflows (industrial_ci, format,
 ros-lint). This repository has none, so nothing checks a pull request. The hooks and
 `./bin/test.sh` already define what CI would have to run.
 
