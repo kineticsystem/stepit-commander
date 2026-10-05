@@ -214,5 +214,5 @@ both together** when moving the submodule.
 The workflows run locally with [Nektos `act`](https://github.com/nektos/act),
 which reads the variables of [`.env`](.env), from a clean checkout: Industrial
 CI mounts the working tree, `build` and `install` included. See
-[How to run GitHub Actions locally](https://github.com/kineticsystem/stepit-driver#how-to-run-github-actions-locally)
-in the README of StepIt Driver.
+[How to run GitHub Actions locally](https://github.com/kineticsystem/stepit-motors#how-to-run-github-actions-locally)
+in the README of StepIt Motors.
