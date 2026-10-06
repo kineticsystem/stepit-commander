@@ -14,6 +14,7 @@ find_package(ament_cmake REQUIRED)
 
 if(BUILD_TESTING)
   find_package(ament_cmake_gtest REQUIRED)
+  find_package(std_msgs REQUIRED)
   find_package(behaviortree_cpp REQUIRED)
   find_package(stepit_server REQUIRED)
   find_package(btcpp_ros2_interfaces REQUIRED)
@@ -38,7 +39,8 @@ if(BUILD_TESTING)
     stepit_server::stepit_server
     rclcpp::rclcpp
     rclcpp_action::rclcpp_action
-    ${btcpp_ros2_interfaces_TARGETS})
+    ${btcpp_ros2_interfaces_TARGETS}
+    ${std_msgs_TARGETS})
 endif()
 
 ament_package()

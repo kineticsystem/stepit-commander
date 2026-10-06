@@ -30,6 +30,7 @@
 #include <fstream>
 #include <future>
 #include <memory>
+#include <mutex>
 #include <optional>
 #include <string>
 #include <thread>
@@ -40,6 +41,7 @@
 #include <btcpp_ros2_interfaces/action/execute_tree.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <rclcpp_action/rclcpp_action.hpp>
+#include <std_msgs/msg/string.hpp>
 
 #include "stepit_server/stepit_server.hpp"
 
@@ -222,6 +224,53 @@ TEST_F(PreemptionTest, TheNewObjectiveRunsToItsEnd)
   const auto finished = result(second, 5s);
   ASSERT_TRUE(finished.has_value());
   EXPECT_EQ(finished->code, rclcpp_action::ResultCode::SUCCEEDED);
+}
+
+// Any client, connecting at any time, knows which objective runs: the server
+// publishes its name, latched, and an empty one when it ends.
+TEST_F(PreemptionTest, TheRunningObjectiveIsPublished)
+{
+  startServer(true);
+  std::mutex mutex;
+  std::vector<std::string> names;
+  const auto topic = std::string{ server_->node()->get_fully_qualified_name() } + "/objective";
+  const auto subscribe = [&]() {
+    return client_node_->create_subscription<std_msgs::msg::String>(
+        topic, rclcpp::QoS{ 1 }.reliable().transient_local(), [&](const std_msgs::msg::String& message) {
+          const std::lock_guard<std::mutex> lock{ mutex };
+          names.push_back(message.data);
+        });
+  };
+  const auto last = [&]() {
+    const std::lock_guard<std::mutex> lock{ mutex };
+    return names.empty() ? std::string{ "<none>" } : names.back();
+  };
+  const auto waitFor = [&](const std::string& name) {
+    const auto deadline = std::chrono::steady_clock::now() + 3s;
+    while (last() != name && std::chrono::steady_clock::now() < deadline)
+    {
+      std::this_thread::sleep_for(20ms);
+    }
+    return last();
+  };
+
+  auto subscription = subscribe();
+  EXPECT_EQ(waitFor(""), "");
+
+  const auto goal = send("Medium");
+  ASSERT_TRUE(goal);
+  EXPECT_EQ(waitFor("Medium"), "Medium");
+
+  // A client that comes while it runs gets its name at once.
+  {
+    const std::lock_guard<std::mutex> lock{ mutex };
+    names.clear();
+  }
+  subscription = subscribe();
+  EXPECT_EQ(waitFor("Medium"), "Medium");
+
+  ASSERT_TRUE(result(goal, 5s).has_value());
+  EXPECT_EQ(waitFor(""), "");
 }
 
 TEST_F(PreemptionTest, AGoalWithNothingRunningIsNotAPreemption)

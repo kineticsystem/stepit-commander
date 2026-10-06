@@ -29,6 +29,7 @@
 
 #include <behaviortree_cpp/loggers/bt_cout_logger.h>
 #include <behaviortree_ros2/tree_execution_server.hpp>
+#include <std_msgs/msg/string.hpp>
 
 #include "stepit_server/execution_status.hpp"
 #include "stepit_server/payload.hpp"
@@ -67,7 +68,8 @@ protected:
    */
   bool onGoalReceived(const std::string& tree_name, const std::string& payload) override;
 
-  /// @brief Publish the parameters of the command into the global blackboard.
+  /// @brief Publish the parameters of the command into the global blackboard,
+  /// and the name of the objective on `~/objective`.
   void onTreeCreated(BT::Tree& tree) override;
 
   /// @brief Remember whether the tick ended the tree, for onLoopFeedback, and
@@ -77,6 +79,7 @@ protected:
   /// @brief The status of the nodes that changed, see ExecutionStatus.
   std::optional<std::string> onLoopFeedback() override;
 
+  /// @brief Publish on `~/objective` that no objective runs any more.
   std::optional<std::string> onTreeExecutionCompleted(BT::NodeStatus status, bool was_cancelled) override;
 
 private:
@@ -92,6 +95,13 @@ private:
   std::unique_ptr<ExecutionStatus> execution_status_;
   /// @brief The status of the last tick.
   BT::NodeStatus tick_status_ = BT::NodeStatus::IDLE;
+
+  /// @brief The objective running, latched, empty when none: a client connecting
+  /// at any time knows what runs, whoever sent it.
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr objective_publisher_;
+
+  /// @brief Publish the name of the objective running, or "" for none.
+  void publishObjective(const std::string& name);
 
   /// @brief Whether a new goal replaces the running objective, the parameter `preempt`.
   bool preempt_;

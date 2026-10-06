@@ -15,6 +15,7 @@ find_package(behaviortree_cpp REQUIRED)
 find_package(behaviortree_ros2 REQUIRED)
 find_package(btcpp_ros2_interfaces REQUIRED)
 find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(yaml-cpp REQUIRED)
 
 if(TARGET yaml-cpp::yaml-cpp)
@@ -44,6 +45,7 @@ target_link_libraries(stepit_server PUBLIC
   behaviortree_cpp::behaviortree_cpp
   rclcpp::rclcpp
   ${btcpp_ros2_interfaces_TARGETS}
+  ${std_msgs_TARGETS}
   PRIVATE
   ${YAML_CPP_TARGET})
 
@@ -85,6 +87,7 @@ ament_export_dependencies(
   behaviortree_ros2
   btcpp_ros2_interfaces
   rclcpp
-  yaml-cpp)
+  yaml-cpp
+  std_msgs)
 
 ament_package()
