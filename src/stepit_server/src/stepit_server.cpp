@@ -33,6 +33,17 @@ namespace stepit_server
 CommanderServer::CommanderServer(const rclcpp::NodeOptions& options) : BT::TreeExecutionServer(options)
 {
   preempt_ = node()->declare_parameter<bool>("preempt", true);
+  // Latched: the last value reaches a client that subscribes later.
+  objective_publisher_ =
+      node()->create_publisher<std_msgs::msg::String>("~/objective", rclcpp::QoS{ 1 }.reliable().transient_local());
+  publishObjective("");
+}
+
+void CommanderServer::publishObjective(const std::string& name)
+{
+  std_msgs::msg::String message;
+  message.data = name;
+  objective_publisher_->publish(message);
 }
 
 bool CommanderServer::onGoalReceived(const std::string& tree_name, const std::string& payload)
@@ -124,6 +135,8 @@ void CommanderServer::onTreeCreated(BT::Tree& tree)
     written_keys_.push_back(key);
   }
 
+  publishObjective(tree.subtrees.empty() ? "" : tree.subtrees.front()->tree_ID);
+
   logger_ = std::make_shared<BT::StdCoutLogger>(tree);
   execution_status_ = std::make_unique<ExecutionStatus>(tree);
   tick_status_ = BT::NodeStatus::IDLE;
@@ -159,6 +172,7 @@ std::optional<std::string> CommanderServer::onLoopFeedback()
 std::optional<std::string> CommanderServer::onTreeExecutionCompleted(BT::NodeStatus, bool)
 {
   running_ = false;
+  publishObjective("");
   logger_.reset();
   execution_status_.reset();
   if (preempted_)

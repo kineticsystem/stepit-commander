@@ -18,8 +18,10 @@
   <test_depend>rclcpp</test_depend>
   <test_depend>rclcpp_action</test_depend>
   <test_depend>stepit_server</test_depend>
+  <test_depend>std_msgs</test_depend>
 
   <export>
     <build_type>ament_cmake</build_type>
   </export>
+
 </package>

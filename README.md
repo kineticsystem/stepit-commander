@@ -99,6 +99,14 @@ ros2 service call /commander/execute_objective/_action/cancel_goal \
 
 A client can also cancel its own goal, as the StepIt Editor's Stop button does.
 
+**Any client can see what runs.** The server publishes the name of the running objective on `~/objective` (`std_msgs/String`), e.g. `/stepit_server/objective`, and an empty name when it ends. The topic is latched, reliable and transient local, so a client that subscribes at any time, e.g. a web page opened on a second device, gets the current value at once, whoever sent the goal:
+
+```bash
+ros2 topic echo /stepit_server/objective --qos-durability transient_local --qos-reliability reliable
+```
+
+A tree that throws ends without the server knowing it ended: its name stays until the next objective.
+
 ## Plugging in a Robot
 
 A robot provides two things, in packages of its own, usually built as a
