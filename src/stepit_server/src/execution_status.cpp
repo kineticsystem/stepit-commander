@@ -29,8 +29,12 @@
 namespace stepit_server
 {
 
-ExecutionStatus::ExecutionStatus(const BT::Tree& tree, std::chrono::milliseconds period)
-  : BT::StatusChangeLogger(tree.rootNode()), tree_xml_(BT::WriteTreeToXML(tree, true, false)), period_(period)
+ExecutionStatus::ExecutionStatus(const BT::Tree& tree, std::chrono::milliseconds period, std::uint64_t run)
+  : BT::StatusChangeLogger(tree.rootNode())
+  , run_(run)
+  , objective_(tree.subtrees.empty() ? "" : tree.subtrees.front()->tree_ID)
+  , tree_xml_(BT::WriteTreeToXML(tree, true, false))
+  , period_(period)
 {
   for (const auto& subtree : tree.subtrees)
   {
@@ -48,14 +52,47 @@ void ExecutionStatus::callback(BT::Duration, const BT::TreeNode& node, BT::NodeS
 {
   if (status != BT::NodeStatus::IDLE)
   {
-    changes_[node.UID()] = BT::toStr(status);
+    changes_[node.UID()] = statuses_[node.UID()] = BT::toStr(status);
   }
   else if (prev_status == BT::NodeStatus::RUNNING)
   {
     // A node that ends goes through SUCCESS or FAILURE: straight back to IDLE,
     // it was halted.
-    changes_[node.UID()] = "HALTED";
+    changes_[node.UID()] = statuses_[node.UID()] = "HALTED";
   }
+}
+
+std::string ExecutionStatus::snapshot(const std::optional<Ending>& ending) const
+{
+  nlohmann::json message;
+  message["run"] = run_;
+  message["objective"] = objective_;
+  message["tree"] = tree_xml_;
+  auto& nodes = message["nodes"] = nlohmann::json::object();
+  for (const auto& [uid, status] : statuses_)
+  {
+    nodes[std::to_string(uid)] = status;
+  }
+  auto& progress = message["progress"] = nlohmann::json::object();
+  if (!ending)
+  {
+    for (const auto& [node, reporter] : reporters_)
+    {
+      const auto current = node->status() == BT::NodeStatus::RUNNING ? reporter->progress() : std::nullopt;
+      if (current)
+      {
+        progress[std::to_string(node->UID())] = { { "done", current->done }, { "total", current->total } };
+      }
+    }
+  }
+  message["running"] = !ending.has_value();
+  if (ending)
+  {
+    message["status"] = BT::toStr(ending->status);
+    message["cancelled"] = ending->cancelled;
+    message["message"] = ending->message;
+  }
+  return message.dump();
 }
 
 std::optional<std::string> ExecutionStatus::feedback(bool finished, Clock::time_point now)
@@ -93,6 +130,7 @@ std::optional<std::string> ExecutionStatus::feedback(bool finished, Clock::time_
   nlohmann::json message;
   if (!tree_sent_)
   {
+    message["run"] = run_;
     message["tree"] = tree_xml_;
     tree_sent_ = true;
   }

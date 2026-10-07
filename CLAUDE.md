@@ -83,7 +83,9 @@ for the previous tree.
 **Tests** of the server need no robot: they exercise the payload, the execution status and the
 tree loader directly, and run the real server for preemption (`test_preemption`). A
 `TreeExecutionServer` that ran a goal cannot be destroyed (its destructor does not join its thread),
-so that test keeps its servers alive, each on an action and a Groot2 port of its own.
+so that test keeps its servers alive, each on an action, a node name and a Groot2 port of its own:
+with the same node name, the latched topics of the servers of the previous tests would reach the
+next test's subscriptions.
 
 ## CI
 

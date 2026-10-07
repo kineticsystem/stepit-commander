@@ -37,6 +37,8 @@ CommanderServer::CommanderServer(const rclcpp::NodeOptions& options) : BT::TreeE
   objective_publisher_ =
       node()->create_publisher<std_msgs::msg::String>("~/objective", rclcpp::QoS{ 1 }.reliable().transient_local());
   publishObjective("");
+  execution_publisher_ =
+      node()->create_publisher<std_msgs::msg::String>("~/execution", rclcpp::QoS{ 1 }.reliable().transient_local());
 }
 
 void CommanderServer::publishObjective(const std::string& name)
@@ -138,7 +140,7 @@ void CommanderServer::onTreeCreated(BT::Tree& tree)
   publishObjective(tree.subtrees.empty() ? "" : tree.subtrees.front()->tree_ID);
 
   logger_ = std::make_shared<BT::StdCoutLogger>(tree);
-  execution_status_ = std::make_unique<ExecutionStatus>(tree);
+  execution_status_ = std::make_unique<ExecutionStatus>(tree, ExecutionStatus::kDefaultPeriod, ++runs_);
   tick_status_ = BT::NodeStatus::IDLE;
 
   // A request made while the previous tree was ending was meant for that tree:
@@ -166,21 +168,36 @@ std::optional<std::string> CommanderServer::onLoopFeedback()
   {
     return std::nullopt;
   }
-  return execution_status_->feedback(tick_status_ != BT::NodeStatus::RUNNING);
+  auto feedback = execution_status_->feedback(tick_status_ != BT::NodeStatus::RUNNING);
+  if (feedback)
+  {
+    // The run changed: the whole of it, for a client that follows every run.
+    std_msgs::msg::String message;
+    message.data = execution_status_->snapshot();
+    execution_publisher_->publish(message);
+  }
+  return feedback;
 }
 
-std::optional<std::string> CommanderServer::onTreeExecutionCompleted(BT::NodeStatus, bool)
+std::optional<std::string> CommanderServer::onTreeExecutionCompleted(BT::NodeStatus status, bool was_cancelled)
 {
+  std::optional<std::string> result;
+  if (preempted_)
+  {
+    const std::lock_guard<std::mutex> lock{ preempting_mutex_ };
+    result = "Preempted by objective '" + preempting_objective_ + "'";
+  }
+  if (execution_status_)
+  {
+    std_msgs::msg::String message;
+    message.data = execution_status_->snapshot(ExecutionStatus::Ending{ status, was_cancelled, result.value_or("") });
+    execution_publisher_->publish(message);
+  }
   running_ = false;
   publishObjective("");
   logger_.reset();
   execution_status_.reset();
-  if (preempted_)
-  {
-    const std::lock_guard<std::mutex> lock{ preempting_mutex_ };
-    return "Preempted by objective '" + preempting_objective_ + "'";
-  }
-  return std::nullopt;
+  return result;
 }
 
 }  // namespace stepit_server

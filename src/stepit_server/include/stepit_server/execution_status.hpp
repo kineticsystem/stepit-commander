@@ -58,14 +58,43 @@ namespace stepit_server
  *   by `_uid`. A node reports none before it runs, nor once it ended.
  *
  * The changes, of status or of progress, are sent at most once per period, and
- * always after the last tick.
+ * always after the last tick. The first message also carries `run`, the number
+ * of the run, which tells its snapshots, below, from those of other runs.
+ *
+ * snapshot() is the whole run in one message, for a client that comes while it
+ * runs, or after:
+ *
+ *     {"run": 7, "objective": "Main", "tree": "<root ...>...</root>",
+ *      "nodes": {"1": "RUNNING", "2": "SUCCESS"}, "progress": {"3": {"done": 2, "total": 11}},
+ *      "running": true}
+ *
+ * `nodes` holds every node that has run, with its last status, `progress` every
+ * running reporter. A run that ended has `running` false, and `status`, how the
+ * tree ended, SUCCESS or FAILURE, `cancelled`, and `message`, e.g. why it was
+ * preempted.
  */
 class ExecutionStatus : public BT::StatusChangeLogger
 {
 public:
   using Clock = std::chrono::steady_clock;
 
-  explicit ExecutionStatus(const BT::Tree& tree, std::chrono::milliseconds period = std::chrono::milliseconds{ 50 });
+  /// @brief How often the changes are sent, at most.
+  static constexpr std::chrono::milliseconds kDefaultPeriod{ 50 };
+
+  /// @brief How a run ended, for its last snapshot.
+  struct Ending
+  {
+    BT::NodeStatus status;
+    bool cancelled;
+    std::string message;
+  };
+
+  /**
+   * @param run The number of the run, which the server counts: in the first
+   * feedback message and in every snapshot.
+   */
+  explicit ExecutionStatus(const BT::Tree& tree, std::chrono::milliseconds period = kDefaultPeriod,
+                           std::uint64_t run = 0);
 
   /**
    * @brief The feedback to publish after a tick, if any.
@@ -73,6 +102,13 @@ public:
    * whatever the period.
    */
   std::optional<std::string> feedback(bool finished, Clock::time_point now = Clock::now());
+
+  /**
+   * @brief The whole run, see above: every node with its last status, and the
+   * progress of the running reporters.
+   * @param ending How the run ended, or none while it runs.
+   */
+  std::string snapshot(const std::optional<Ending>& ending = std::nullopt) const;
 
   void callback(BT::Duration timestamp, const BT::TreeNode& node, BT::NodeStatus prev_status,
                 BT::NodeStatus status) override;
@@ -82,12 +118,16 @@ public:
   }
 
 private:
+  std::uint64_t run_;
+  std::string objective_;
   std::string tree_xml_;
   std::chrono::milliseconds period_;
   bool tree_sent_ = false;
   Clock::time_point last_sent_;
   /// @brief The last status of the nodes that changed, as sent: see above.
   std::map<std::uint16_t, std::string> changes_;
+  /// @brief The last status of every node that has run, for the snapshots.
+  std::map<std::uint16_t, std::string> statuses_;
   /// @brief The nodes of the tree that report their progress.
   std::vector<std::pair<const BT::TreeNode*, const ProgressReporter*>> reporters_;
   /// @brief The last progress sent of each running reporter.
