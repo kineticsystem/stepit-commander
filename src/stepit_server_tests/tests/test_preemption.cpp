@@ -25,9 +25,12 @@
 #include <unistd.h>
 
 #include <chrono>
+#include <algorithm>
+#include <cstdint>
 #include <cstdlib>
 #include <filesystem>
 #include <fstream>
+#include <functional>
 #include <future>
 #include <memory>
 #include <mutex>
@@ -37,6 +40,8 @@
 #include <vector>
 
 #include <gtest/gtest.h>
+
+#include <behaviortree_cpp/contrib/json.hpp>
 
 #include <btcpp_ros2_interfaces/action/execute_tree.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -137,6 +142,9 @@ protected:
     // Groot2 takes the port and the next one.
     const int groot2_port = 17670 + 2 * count++;
     rclcpp::NodeOptions options;
+    // A name of its own: the servers of the previous tests are still alive, and
+    // their latched topics would reach this test's subscriptions.
+    options.arguments({ "--ros-args", "-r", "__node:=" + action });
     options.parameter_overrides({ { "action_name", action },
                                   { "groot2_port", groot2_port },
                                   { "behavior_trees", std::vector<std::string>{ std::string{ kPackage } + "/trees" } },
@@ -271,6 +279,70 @@ TEST_F(PreemptionTest, TheRunningObjectiveIsPublished)
 
   ASSERT_TRUE(result(goal, 5s).has_value());
   EXPECT_EQ(waitFor(""), "");
+}
+
+TEST_F(PreemptionTest, EveryRunIsPublishedWhole)
+{
+  startServer(true);
+  std::mutex mutex;
+  std::vector<nlohmann::json> snapshots;
+  const auto topic = std::string{ server_->node()->get_fully_qualified_name() } + "/execution";
+  const auto subscribe = [&]() {
+    return client_node_->create_subscription<std_msgs::msg::String>(
+        topic, rclcpp::QoS{ 1 }.reliable().transient_local(), [&](const std_msgs::msg::String& message) {
+          const std::lock_guard<std::mutex> lock{ mutex };
+          snapshots.push_back(nlohmann::json::parse(message.data));
+        });
+  };
+  // The last snapshot received that matches, waiting up to 3 s.
+  const auto waitFor = [&](const std::function<bool(const nlohmann::json&)>& matches) -> std::optional<nlohmann::json> {
+    const auto deadline = std::chrono::steady_clock::now() + 3s;
+    while (std::chrono::steady_clock::now() < deadline)
+    {
+      {
+        const std::lock_guard<std::mutex> lock{ mutex };
+        if (!snapshots.empty() && matches(snapshots.back()))
+        {
+          return snapshots.back();
+        }
+      }
+      std::this_thread::sleep_for(20ms);
+    }
+    return std::nullopt;
+  };
+
+  const auto goal = send("Medium");
+  ASSERT_TRUE(goal);
+
+  // A client that comes while it runs gets the whole run at once.
+  std::this_thread::sleep_for(300ms);
+  auto subscription = subscribe();
+  const auto running = waitFor([](const nlohmann::json& snapshot) { return snapshot.at("running") == true; });
+  ASSERT_TRUE(running);
+  EXPECT_EQ(running->at("objective"), "Medium");
+  EXPECT_EQ(running->at("nodes"), (nlohmann::json{ { "1", "RUNNING" } }));
+  EXPECT_NE(running->at("tree").get<std::string>().find("Sleep"), std::string::npos);
+  const auto run = running->at("run").get<std::uint64_t>();
+
+  // Preempted: its end, then the next run.
+  const auto next = send("Quick");
+  ASSERT_TRUE(next);
+  ASSERT_TRUE(result(goal, 5s).has_value());
+  ASSERT_TRUE(result(next, 5s).has_value());
+  const auto ended = waitFor([&](const nlohmann::json& snapshot) { return snapshot.at("run") == run + 1; });
+  ASSERT_TRUE(ended);
+  EXPECT_EQ(ended->at("objective"), "Quick");
+  EXPECT_EQ(ended->at("running"), false);
+  EXPECT_EQ(ended->at("status"), "SUCCESS");
+  {
+    const std::lock_guard<std::mutex> lock{ mutex };
+    const auto preempted = std::find_if(snapshots.begin(), snapshots.end(), [&](const nlohmann::json& snapshot) {
+      return snapshot.at("run") == run && snapshot.at("running") == false;
+    });
+    ASSERT_NE(preempted, snapshots.end());
+    EXPECT_EQ(preempted->at("status"), "FAILURE");
+    EXPECT_EQ(preempted->at("message"), "Preempted by objective 'Quick'");
+  }
 }
 
 TEST_F(PreemptionTest, AGoalWithNothingRunningIsNotAPreemption)

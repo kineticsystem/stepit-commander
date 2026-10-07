@@ -21,6 +21,7 @@
 #pragma once
 
 #include <atomic>
+#include <cstdint>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -54,6 +55,10 @@ namespace stepit_server
  * objective runs replaces it: the running tree is halted at its next tick and
  * its goal aborted, and the new objective starts. With `preempt` false, the new
  * goal waits for the running objective to end.
+ *
+ * Whoever sent the goal, every client can follow the run: the server publishes
+ * the running objective on `~/objective`, and the whole run, every node with
+ * its status, on `~/execution`, both latched, see ExecutionStatus::snapshot().
  */
 class CommanderServer : public BT::TreeExecutionServer
 {
@@ -76,10 +81,12 @@ protected:
   /// end it if a new goal preempts it.
   std::optional<BT::NodeStatus> onLoopAfterTick(BT::NodeStatus status) override;
 
-  /// @brief The status of the nodes that changed, see ExecutionStatus.
+  /// @brief The status of the nodes that changed, see ExecutionStatus, and the
+  /// whole run on `~/execution` when it changed.
   std::optional<std::string> onLoopFeedback() override;
 
-  /// @brief Publish on `~/objective` that no objective runs any more.
+  /// @brief Publish how the run ended on `~/execution`, and on `~/objective` that
+  /// no objective runs any more.
   std::optional<std::string> onTreeExecutionCompleted(BT::NodeStatus status, bool was_cancelled) override;
 
 private:
@@ -102,6 +109,11 @@ private:
 
   /// @brief Publish the name of the objective running, or "" for none.
   void publishObjective(const std::string& name);
+
+  /// @brief The last run, running or ended, latched, see ExecutionStatus::snapshot().
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr execution_publisher_;
+  /// @brief The number of the last run: the first is 1.
+  std::uint64_t runs_ = 0;
 
   /// @brief Whether a new goal replaces the running objective, the parameter `preempt`.
   bool preempt_;

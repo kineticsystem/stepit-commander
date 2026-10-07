@@ -320,4 +320,64 @@ TEST(ExecutionStatus, ANodeWithoutProgressSendsNone)
   EXPECT_FALSE(nlohmann::json::parse(status.feedback(false).value()).contains("progress"));
 }
 
+TEST_F(ExecutionStatusTest, TheFirstMessageCarriesTheRun)
+{
+  ExecutionStatus status(tree_, ExecutionStatus::kDefaultPeriod, 7);
+  tree_.tickExactlyOnce();
+  EXPECT_EQ(parse(status.feedback(false, start_)).at("run"), 7);
+
+  tree_.tickExactlyOnce();
+  EXPECT_FALSE(parse(status.feedback(true, start_ + 10ms)).contains("run"));
+}
+
+TEST_F(ExecutionStatusTest, ASnapshotIsTheWholeRun)
+{
+  ExecutionStatus status(tree_, ExecutionStatus::kDefaultPeriod, 7);
+  tree_.tickExactlyOnce();
+  status.feedback(false, start_);
+  tree_.tickExactlyOnce();
+  status.feedback(true, start_ + 10ms);
+
+  // Every node, though the last feedback carried the changes only.
+  const auto snapshot = nlohmann::json::parse(status.snapshot());
+  EXPECT_EQ(snapshot.at("run"), 7);
+  EXPECT_EQ(snapshot.at("objective"), "Main");
+  EXPECT_NE(snapshot.at("tree").get<std::string>().find(R"(_uid="5")"), std::string::npos);
+  EXPECT_EQ(snapshot.at("nodes"), (nlohmann::json{ { "1", "SUCCESS" },
+                                                   { "2", "SUCCESS" },
+                                                   { "3", "SUCCESS" },
+                                                   { "4", "SUCCESS" },
+                                                   { "5", "FAILURE" },
+                                                   { "6", "SUCCESS" } }));
+  EXPECT_TRUE(snapshot.at("running"));
+  EXPECT_FALSE(snapshot.contains("status"));
+}
+
+TEST_F(ExecutionStatusTest, TheLastSnapshotTellsHowTheRunEnded)
+{
+  ExecutionStatus status(tree_);
+  tree_.tickExactlyOnce();
+
+  const auto snapshot = nlohmann::json::parse(
+      status.snapshot(ExecutionStatus::Ending{ BT::NodeStatus::FAILURE, false, "Preempted by objective 'Other'" }));
+  EXPECT_FALSE(snapshot.at("running"));
+  EXPECT_EQ(snapshot.at("status"), "FAILURE");
+  EXPECT_FALSE(snapshot.at("cancelled"));
+  EXPECT_EQ(snapshot.at("message"), "Preempted by objective 'Other'");
+}
+
+TEST_F(ExecutionProgressTest, ASnapshotHasTheProgressOfTheRunningReporters)
+{
+  ExecutionStatus status(tree_);
+  tree_.tickExactlyOnce();
+
+  const auto snapshot = nlohmann::json::parse(status.snapshot());
+  ASSERT_TRUE(snapshot.at("progress").contains("2")) << snapshot.dump();
+  EXPECT_TRUE(snapshot.at("progress").at("2").contains("done"));
+
+  const auto ended =
+      nlohmann::json::parse(status.snapshot(ExecutionStatus::Ending{ BT::NodeStatus::FAILURE, true, "" }));
+  EXPECT_TRUE(ended.at("progress").empty()) << "nothing runs once it ended";
+}
+
 }  // namespace stepit_server::test
