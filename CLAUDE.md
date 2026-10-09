@@ -81,9 +81,10 @@ for the running tree's thread, so `CommanderServer` ends that tree through its o
 for the previous tree.
 
 **BehaviorTree.ROS2 is our fork**, `kineticsystem/BehaviorTree.ROS2`, branch `humble`: upstream's
-`humble` plus the fixes proposed upstream and not yet released. Today one: a node that throws while
-the tree is ticked halts the tree and calls `onTreeExecutionCompleted` (FAILURE), as any other end
-of a run, which `~/objective` and `~/execution` rely on. A fix to BehaviorTree.ROS2 goes to the
+`humble` plus the fixes proposed upstream and not yet released. Today one: an exception thrown
+after `onTreeCreated`, by a node while the tree is ticked or by `onLoopAfterTick` or
+`onLoopFeedback`, halts the tree and calls `onTreeExecutionCompleted` (FAILURE), once, as any other
+end of a run, which `~/objective` and `~/execution` rely on. A fix to BehaviorTree.ROS2 goes to the
 fork, with a pull request upstream, then the submodule and `stepit.repos` move to it together.
 
 **Tests** of the server need no robot: they exercise the payload, the execution status and the
