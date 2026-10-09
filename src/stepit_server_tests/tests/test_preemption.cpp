@@ -300,6 +300,24 @@ TEST_F(PreemptionTest, ATreeThatThrowsEndsItsRun)
         const std::lock_guard<std::mutex> lock{ mutex };
         names.push_back(message.data);
       });
+  // The latched "" of the server's start first: a goal sent before the
+  // subscription is matched would leave "Throws" as the latched value.
+  const auto connected = std::chrono::steady_clock::now() + 3s;
+  while (std::chrono::steady_clock::now() < connected)
+  {
+    {
+      const std::lock_guard<std::mutex> lock{ mutex };
+      if (!names.empty())
+      {
+        break;
+      }
+    }
+    std::this_thread::sleep_for(20ms);
+  }
+  {
+    const std::lock_guard<std::mutex> lock{ mutex };
+    ASSERT_EQ(names, std::vector<std::string>{ "" });
+  }
 
   const auto goal = send("Throws");
   ASSERT_TRUE(goal);
