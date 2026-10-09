@@ -148,4 +148,20 @@ std::optional<std::string> ExecutionStatus::feedback(bool finished, Clock::time_
   return message.dump();
 }
 
+SnapshotPacer::SnapshotPacer(std::chrono::milliseconds period) : period_(period)
+{
+}
+
+bool SnapshotPacer::due(bool changed, Clock::time_point now)
+{
+  pending_ = pending_ || changed;
+  if (!pending_ || (last_ && now - *last_ < period_))
+  {
+    return false;
+  }
+  pending_ = false;
+  last_ = now;
+  return true;
+}
+
 }  // namespace stepit_server

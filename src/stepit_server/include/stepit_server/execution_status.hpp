@@ -134,4 +134,29 @@ private:
   std::map<std::uint16_t, std::pair<double, double>> progress_sent_;
 };
 
+/**
+ * @brief When to publish the snapshot of a run: once something changed, and
+ * at most once per period. A change held back by the period is published as
+ * soon as the period has passed, even if nothing changes after it, so the
+ * last change of a run that then waits, e.g. on a long move, is not lost.
+ */
+class SnapshotPacer
+{
+public:
+  using Clock = std::chrono::steady_clock;
+
+  explicit SnapshotPacer(std::chrono::milliseconds period);
+
+  /**
+   * @brief Whether to publish a snapshot now.
+   * @param changed Whether the run changed since the last call.
+   */
+  bool due(bool changed, Clock::time_point now = Clock::now());
+
+private:
+  std::chrono::milliseconds period_;
+  bool pending_ = false;
+  std::optional<Clock::time_point> last_;
+};
+
 }  // namespace stepit_server

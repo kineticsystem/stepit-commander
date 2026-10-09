@@ -37,6 +37,7 @@
 #include <optional>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
@@ -102,6 +103,8 @@ protected:
     std::ofstream{ trees / "long.xml" } << objective("Long", R"(<Sleep msec="10000"/>)");
     std::ofstream{ trees / "medium.xml" } << objective("Medium", R"(<Sleep msec="1000"/>)");
     std::ofstream{ trees / "quick.xml" } << objective("Quick", "<AlwaysSuccess/>");
+    // A run whose statuses change every 20 ms, for about a second.
+    std::ofstream{ trees / "busy.xml" } << objective("Busy", R"(<Repeat num_cycles="50"><Sleep msec="20"/></Repeat>)");
     // A node that throws while the tree runs: the script reads an entry nobody wrote.
     std::ofstream{ trees / "throws.xml" }
         << objective("Throws", R"(<Sequence><Sleep msec="300"/><Script code="x := @missing + 1"/></Sequence>)");
@@ -297,6 +300,24 @@ TEST_F(PreemptionTest, ATreeThatThrowsEndsItsRun)
         const std::lock_guard<std::mutex> lock{ mutex };
         names.push_back(message.data);
       });
+  // The latched "" of the server's start first: a goal sent before the
+  // subscription is matched would leave "Throws" as the latched value.
+  const auto connected = std::chrono::steady_clock::now() + 3s;
+  while (std::chrono::steady_clock::now() < connected)
+  {
+    {
+      const std::lock_guard<std::mutex> lock{ mutex };
+      if (!names.empty())
+      {
+        break;
+      }
+    }
+    std::this_thread::sleep_for(20ms);
+  }
+  {
+    const std::lock_guard<std::mutex> lock{ mutex };
+    ASSERT_EQ(names, std::vector<std::string>{ "" });
+  }
 
   const auto goal = send("Throws");
   ASSERT_TRUE(goal);
@@ -380,6 +401,47 @@ TEST_F(PreemptionTest, EveryRunIsPublishedWhole)
     EXPECT_EQ(preempted->at("status"), "FAILURE");
     EXPECT_EQ(preempted->at("message"), "Preempted by objective 'Quick'");
   }
+}
+
+// Each snapshot holds the whole tree: they come at most once per
+// execution_period, 0.2 s by default, however often the statuses change.
+TEST_F(PreemptionTest, TheRunIsPublishedAtMostFiveTimesASecond)
+{
+  startServer(true);
+  std::mutex mutex;
+  std::vector<std::pair<std::chrono::steady_clock::time_point, nlohmann::json>> snapshots;
+  const auto topic = std::string{ server_->node()->get_fully_qualified_name() } + "/execution";
+  const auto subscription = client_node_->create_subscription<std_msgs::msg::String>(
+      topic, rclcpp::QoS{ 100 }.reliable().transient_local(), [&](const std_msgs::msg::String& message) {
+        const std::lock_guard<std::mutex> lock{ mutex };
+        snapshots.emplace_back(std::chrono::steady_clock::now(), nlohmann::json::parse(message.data));
+      });
+  std::this_thread::sleep_for(300ms);
+
+  const auto goal = send("Busy");
+  ASSERT_TRUE(goal);
+  ASSERT_TRUE(result(goal, 10s).has_value());
+  std::this_thread::sleep_for(300ms);
+
+  const std::lock_guard<std::mutex> lock{ mutex };
+  std::vector<std::chrono::steady_clock::time_point> running;
+  for (const auto& [time, snapshot] : snapshots)
+  {
+    if (snapshot.at("objective") == "Busy" && snapshot.at("running") == true)
+    {
+      running.push_back(time);
+    }
+  }
+  ASSERT_GE(running.size(), 3u) << "the run lasts about a second";
+  // Without the period, a snapshot would follow every feedback, every 50 ms.
+  EXPECT_LE(running.size(), 8u);
+  for (std::size_t i = 1; i < running.size(); ++i)
+  {
+    EXPECT_GE(running[i] - running[i - 1], 150ms) << "snapshot " << i;
+  }
+  // The end of the run is published too.
+  EXPECT_EQ(snapshots.back().second.at("objective"), "Busy");
+  EXPECT_EQ(snapshots.back().second.at("running"), false);
 }
 
 TEST_F(PreemptionTest, AGoalWithNothingRunningIsNotAPreemption)

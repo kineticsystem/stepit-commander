@@ -380,4 +380,35 @@ TEST_F(ExecutionProgressTest, ASnapshotHasTheProgressOfTheRunningReporters)
   EXPECT_TRUE(ended.at("progress").empty()) << "nothing runs once it ended";
 }
 
+TEST(SnapshotPacer, PublishesTheFirstChangeAtOnce)
+{
+  SnapshotPacer pacer{ 200ms };
+  const auto start = SnapshotPacer::Clock::now();
+  EXPECT_FALSE(pacer.due(false, start)) << "nothing changed";
+  EXPECT_TRUE(pacer.due(true, start));
+}
+
+TEST(SnapshotPacer, PublishesAtMostOncePerPeriod)
+{
+  SnapshotPacer pacer{ 200ms };
+  const auto start = SnapshotPacer::Clock::now();
+  ASSERT_TRUE(pacer.due(true, start));
+  EXPECT_FALSE(pacer.due(true, start + 50ms));
+  EXPECT_FALSE(pacer.due(true, start + 150ms));
+  EXPECT_TRUE(pacer.due(true, start + 200ms));
+}
+
+// A change held back is not lost: it goes out once the period has passed,
+// though nothing changes after it, e.g. while a long move runs.
+TEST(SnapshotPacer, PublishesAHeldBackChangeOnceThePeriodHasPassed)
+{
+  SnapshotPacer pacer{ 200ms };
+  const auto start = SnapshotPacer::Clock::now();
+  ASSERT_TRUE(pacer.due(true, start));
+  EXPECT_FALSE(pacer.due(true, start + 100ms));
+  EXPECT_FALSE(pacer.due(false, start + 150ms));
+  EXPECT_TRUE(pacer.due(false, start + 210ms));
+  EXPECT_FALSE(pacer.due(false, start + 500ms)) << "nothing more to publish";
+}
+
 }  // namespace stepit_server::test
