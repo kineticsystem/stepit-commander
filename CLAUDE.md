@@ -73,12 +73,18 @@ the **global** blackboard, which is why objectives reference them with the `@` p
 a payload that is not a map of scalars and lists is rejected before the tree is created.
 
 **Preemption.** With the parameter `preempt` true, the default, a goal accepted while an objective
-runs replaces it. BehaviorTree.ROS2 (third party: never change it) accepts the goal and then waits
+runs replaces it. BehaviorTree.ROS2 (third party: never change it here) accepts the goal and then waits
 for the running tree's thread, so `CommanderServer` ends that tree through its own hooks:
 `onGoalReceived` raises `preempt_requested_` if a tree is `running_`, the running tree's
 `onLoopAfterTick` returns `FAILURE`, which makes the server halt it and abort its goal, and
 `onTreeExecutionCompleted` gives the message. `onTreeCreated` clears the request, which was meant
 for the previous tree.
+
+**BehaviorTree.ROS2 is our fork**, `kineticsystem/BehaviorTree.ROS2`, branch `humble`: upstream's
+`humble` plus the fixes proposed upstream and not yet released. Today one: a node that throws while
+the tree is ticked halts the tree and calls `onTreeExecutionCompleted` (FAILURE), as any other end
+of a run, which `~/objective` and `~/execution` rely on. A fix to BehaviorTree.ROS2 goes to the
+fork, with a pull request upstream, then the submodule and `stepit.repos` move to it together.
 
 **Tests** of the server need no robot: they exercise the payload, the execution status and the
 tree loader directly, and run the real server for preemption (`test_preemption`). A
