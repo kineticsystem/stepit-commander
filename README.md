@@ -48,9 +48,11 @@ with ours.
 The submodule is our fork,
 [kineticsystem/BehaviorTree.ROS2](https://github.com/kineticsystem/BehaviorTree.ROS2),
 branch `humble`: upstream's `humble`, with the fixes we have proposed upstream
-and not yet released there. Today one: a node that throws while its tree is
-ticked halts the tree and ends the run through `onTreeExecutionCompleted`, as
-any other end of a run, where upstream aborts the goal and returns at once.
+and not yet released there. Today one: an exception thrown after
+`onTreeCreated`, by a node while its tree is ticked or by `onLoopAfterTick` or
+`onLoopFeedback`, halts the tree and ends the run through
+`onTreeExecutionCompleted`, as any other end of a run, where upstream aborts the
+goal and returns at once.
 When upstream releases a fix, the fork follows it, and we go back to upstream
 once the fork carries nothing of its own.
 
