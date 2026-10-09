@@ -117,9 +117,8 @@ private:
 
   /// @brief Whether a new goal replaces the running objective, the parameter `preempt`.
   bool preempt_;
-  /// @brief Whether an objective is running: set when its tree is created, cleared when it ends.
-  /// A tree that throws ends without onTreeExecutionCompleted, leaving it set: the next goal then
-  /// logs a preemption of nothing, and onTreeCreated clears the request.
+  /// @brief Whether an objective is running: set when its tree is created, cleared when it ends,
+  /// a tree that throws included: BehaviorTree.ROS2, our fork, calls onTreeExecutionCompleted then.
   std::atomic<bool> running_{ false };
   /// @brief Set by a new goal, read by the running tree's loop, which then ends it.
   std::atomic<bool> preempt_requested_{ false };

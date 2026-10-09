@@ -102,6 +102,9 @@ protected:
     std::ofstream{ trees / "long.xml" } << objective("Long", R"(<Sleep msec="10000"/>)");
     std::ofstream{ trees / "medium.xml" } << objective("Medium", R"(<Sleep msec="1000"/>)");
     std::ofstream{ trees / "quick.xml" } << objective("Quick", "<AlwaysSuccess/>");
+    // A node that throws while the tree runs: the script reads an entry nobody wrote.
+    std::ofstream{ trees / "throws.xml" }
+        << objective("Throws", R"(<Sequence><Sleep msec="300"/><Script code="x := @missing + 1"/></Sequence>)");
     const char* prefix = std::getenv("AMENT_PREFIX_PATH");
     ::setenv("AMENT_PREFIX_PATH", (root_.string() + (prefix ? std::string{ ":" } + prefix : "")).c_str(), 1);
 
@@ -279,6 +282,40 @@ TEST_F(PreemptionTest, TheRunningObjectiveIsPublished)
 
   ASSERT_TRUE(result(goal, 5s).has_value());
   EXPECT_EQ(waitFor(""), "");
+}
+
+// A tree that throws ends like any other: its goal aborted with the message of
+// the exception, and its name no longer published as running.
+TEST_F(PreemptionTest, ATreeThatThrowsEndsItsRun)
+{
+  startServer(true);
+  std::mutex mutex;
+  std::vector<std::string> names;
+  const auto subscription = client_node_->create_subscription<std_msgs::msg::String>(
+      std::string{ server_->node()->get_fully_qualified_name() } + "/objective",
+      rclcpp::QoS{ 1 }.reliable().transient_local(), [&](const std_msgs::msg::String& message) {
+        const std::lock_guard<std::mutex> lock{ mutex };
+        names.push_back(message.data);
+      });
+
+  const auto goal = send("Throws");
+  ASSERT_TRUE(goal);
+  const auto ended = result(goal, 5s);
+  ASSERT_TRUE(ended.has_value());
+  EXPECT_EQ(ended->code, rclcpp_action::ResultCode::ABORTED);
+  EXPECT_NE(ended->result->return_message.find("Exception in node"), std::string::npos)
+      << ended->result->return_message;
+  EXPECT_EQ(ended->result->node_status.status, btcpp_ros2_interfaces::msg::NodeStatus::FAILURE);
+
+  const auto deadline = std::chrono::steady_clock::now() + 3s;
+  std::vector<std::string> published;
+  do
+  {
+    std::this_thread::sleep_for(20ms);
+    const std::lock_guard<std::mutex> lock{ mutex };
+    published = names;
+  } while ((published.empty() || published.back() != "") && std::chrono::steady_clock::now() < deadline);
+  EXPECT_EQ(published, (std::vector<std::string>{ "", "Throws", "" }));
 }
 
 TEST_F(PreemptionTest, EveryRunIsPublishedWhole)

@@ -45,6 +45,15 @@ a git submodule under [`modules`](modules), next to `src`. Colcon builds every
 package it finds under the workspace root, so its packages are built together
 with ours.
 
+The submodule is our fork,
+[kineticsystem/BehaviorTree.ROS2](https://github.com/kineticsystem/BehaviorTree.ROS2),
+branch `humble`: upstream's `humble`, with the fixes we have proposed upstream
+and not yet released there. Today one: a node that throws while its tree is
+ticked halts the tree and ends the run through `onTreeExecutionCompleted`, as
+any other end of a run, where upstream aborts the goal and returns at once.
+When upstream releases a fix, the fork follows it, and we go back to upstream
+once the fork carries nothing of its own.
+
 ## The Command
 
 The goal of the action is `btcpp_ros2_interfaces/action/ExecuteTree`:
@@ -111,7 +120,7 @@ ros2 topic echo /stepit_server/objective --qos-durability transient_local --qos-
 ros2 topic echo /stepit_server/execution --qos-durability transient_local --qos-reliability reliable
 ```
 
-A tree that throws ends without the server knowing it ended: its name stays until the next objective, and its run on `~/execution` stays running.
+A tree that throws ends like any other: the tree is halted, its goal is aborted with the exception's message, its name leaves `~/objective`, and its run on `~/execution` ends as failed.
 
 ## Plugging in a Robot
 
