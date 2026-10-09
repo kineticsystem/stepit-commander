@@ -21,6 +21,7 @@
 #pragma once
 
 #include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <memory>
 #include <mutex>
@@ -114,6 +115,10 @@ private:
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr execution_publisher_;
   /// @brief The number of the last run: the first is 1.
   std::uint64_t runs_ = 0;
+  /// @brief The shortest time between two snapshots on `~/execution`, the parameter `execution_period`.
+  std::chrono::milliseconds execution_period_;
+  /// @brief When to publish the snapshot of the running tree.
+  std::unique_ptr<SnapshotPacer> snapshot_pacer_;
 
   /// @brief Whether a new goal replaces the running objective, the parameter `preempt`.
   bool preempt_;

@@ -21,6 +21,9 @@
 #include "stepit_server/stepit_server.hpp"
 
 #include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <cstdint>
 #include <filesystem>
 #include <string>
 #include <vector>
@@ -33,6 +36,8 @@ namespace stepit_server
 CommanderServer::CommanderServer(const rclcpp::NodeOptions& options) : BT::TreeExecutionServer(options)
 {
   preempt_ = node()->declare_parameter<bool>("preempt", true);
+  execution_period_ = std::chrono::milliseconds{ static_cast<std::int64_t>(
+      std::lround(1000.0 * node()->declare_parameter<double>("execution_period", 0.2))) };
   // Latched: the last value reaches a client that subscribes later.
   objective_publisher_ =
       node()->create_publisher<std_msgs::msg::String>("~/objective", rclcpp::QoS{ 1 }.reliable().transient_local());
@@ -141,6 +146,7 @@ void CommanderServer::onTreeCreated(BT::Tree& tree)
 
   logger_ = std::make_shared<BT::StdCoutLogger>(tree);
   execution_status_ = std::make_unique<ExecutionStatus>(tree, ExecutionStatus::kDefaultPeriod, ++runs_);
+  snapshot_pacer_ = std::make_unique<SnapshotPacer>(execution_period_);
   tick_status_ = BT::NodeStatus::IDLE;
 
   // A request made while the previous tree was ending was meant for that tree:
@@ -169,9 +175,11 @@ std::optional<std::string> CommanderServer::onLoopFeedback()
     return std::nullopt;
   }
   auto feedback = execution_status_->feedback(tick_status_ != BT::NodeStatus::RUNNING);
-  if (feedback)
+  // The whole run, for a client that follows every run: at most once per
+  // execution_period, as each snapshot holds the whole tree. The last one is
+  // published when the run ends, see onTreeExecutionCompleted.
+  if (snapshot_pacer_ && snapshot_pacer_->due(feedback.has_value()))
   {
-    // The run changed: the whole of it, for a client that follows every run.
     std_msgs::msg::String message;
     message.data = execution_status_->snapshot();
     execution_publisher_->publish(message);

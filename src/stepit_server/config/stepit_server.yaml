@@ -17,6 +17,11 @@
     # With false, the new goal waits for the running objective to end.
     preempt: true
 
+    # The shortest time between two snapshots of the run on ~/execution, in
+    # seconds: each holds the whole tree, so they come at most this often,
+    # 5 times a second by default. The last one, when the run ends, always.
+    execution_period: 0.2
+
     # The behaviors and the trees are the robot's, not the server's: a robot
     # lists them in a parameter file of its own, passed to the launch file as
     # params_file, which is loaded after this one. For example:
