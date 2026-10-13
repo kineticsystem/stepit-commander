@@ -106,4 +106,4 @@ BehaviorTree.ROS2 from `stepit.repos`, pinned to the commit of the submodule: mo
 - Every source file carries the MIT copyright header (`ament_copyright` enforces it).
 - Packages compile with `-Wall -Wextra -Wpedantic -Wshadow -Wconversion`; C++17.
 - `cpplint` runs with `--linelength=121`; `clang-format` uses the repo `.clang-format`.
-- `TODO.md` records deferred decisions about the server.
+- `docs/TODO.md` records deferred decisions about the server.
