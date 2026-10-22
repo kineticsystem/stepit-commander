@@ -101,7 +101,7 @@ For the `architect` and `reviewer` skills: what they cannot find out alone.
 - There is no `docs/ARCHITECTURE.md` yet. The first one follows one idea: **the server is generic: it knows nothing about any robot, and a robot plugs in through parameters**. If a change breaks it, say so in the document and to the user.
 - Its shape is the newest `docs/ARCHITECTURE.md` of the other StepIt modules, e.g. StepIt Camera's: Introduction, The Big Picture (with a table of the action, topics and parameters), The Packages, the parts (loading the trees, the payload and the blackboard, preemption, the execution status), Tests, How to Extend the Server, Design Decisions and Trade-offs. Link it from the README and from [Architecture](#architecture).
 - **The review is a separate document, `docs/Review.md`**, opened with the date and the commit reviewed; `docs/ARCHITECTURE.md` describes the design and holds no review. The first finding to look for is anything in `stepit_server` that names a robot topic, action, service, behavior or objective.
-- BehaviorTree.ROS2, in `modules/`, is our fork of third-party code: describe how the server uses it and what the fork changes, but do not review its code. `docs/TODO.md` holds deferred decisions: judge them, do not report them as bugs.
+- BehaviorTree.ROS2, in `modules/`, is our fork of third-party code: describe how the server uses it and what the fork changes, but do not review its code.
 - **Probes run in the container, never on the host.** A throwaway test is a gtest in `src/stepit_server_tests/tests/`, added to its `CMakeLists.txt`, and run with `colcon test --packages-select stepit_server_tests --ctest-args -R <test> --event-handlers console_direct+`. A probe that runs a real server gives it an action, a node name and a Groot2 port of its own, and keeps it alive, as `test_preemption` does.
 
 ## CI
@@ -116,4 +116,3 @@ BehaviorTree.ROS2 from `stepit.repos`, pinned to the commit of the submodule: mo
 - Every source file carries the MIT copyright header (`ament_copyright` enforces it).
 - Packages compile with `-Wall -Wextra -Wpedantic -Wshadow -Wconversion`; C++17.
 - `cpplint` runs with `--linelength=121`; `clang-format` uses the repo `.clang-format`.
-- `docs/TODO.md` records deferred decisions about the server.

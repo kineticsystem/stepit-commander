@@ -218,8 +218,7 @@ StepIt Editor can run objectives. It listens on port 9090: change it with
 ./bin/test.sh
 ```
 
-The tests of the server need no robot. [`TODO.md`](docs/TODO.md) records the
-decisions deferred about the server, and what we knew when deferring them.
+The tests of the server need no robot.
 
 ## Continuous Integration
 
