@@ -17,8 +17,8 @@ needed for code changes. `~/ws/bin` is on the `PATH` and `docker/bashrc` defines
 `build`, `test` and `update`, usable from any directory. The scripts `cd` to the workspace
 root themselves.
 
-The submodule must be present or the build fails:
-`git submodule update --init --recursive`.
+BehaviorTree.ROS2 must be in `modules/` or the build fails: `bin/update.sh` imports it from
+`stepit.repos` with `vcs`; git ignores the folder.
 
 ## Commands
 
@@ -85,7 +85,7 @@ for the previous tree.
 after `onTreeCreated`, by a node while the tree is ticked or by `onLoopAfterTick` or
 `onLoopFeedback`, halts the tree and calls `onTreeExecutionCompleted` (FAILURE), once, as any other
 end of a run, which `~/objective` and `~/execution` rely on. A fix to BehaviorTree.ROS2 goes to the
-fork, with a pull request upstream, then the submodule and `stepit.repos` move to it together.
+fork, with a pull request upstream, then `stepit.repos` moves to it.
 
 **Tests** of the server need no robot: they exercise the payload, the execution status and the
 tree loader directly, and run the real server for preemption (`test_preemption`). A
@@ -109,7 +109,7 @@ For the `architect` and `reviewer` skills: what they cannot find out alone.
 `.github/workflows`, as in StepIt Motors: `industrial_ci.yml` builds and tests (jazzy, main and
 testing), `ci-format.yml` runs pre-commit without the ament hooks, `ci-ros-lint.yml` runs those per
 package; a new package must be added to its package list. Industrial CI imports
-BehaviorTree.ROS2 from `stepit.repos`, pinned to the commit of the submodule: move both together.
+BehaviorTree.ROS2 from `stepit.repos`, the file `bin/update.sh` imports it from.
 
 ## Conventions
 
