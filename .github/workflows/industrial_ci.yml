@@ -10,7 +10,7 @@ jobs:
           - { ROS_DISTRO: jazzy, ROS_REPO: testing }
           - { ROS_DISTRO: jazzy, ROS_REPO: main }
     env:
-      # BehaviorTree.ROS2, which is a submodule, see stepit.repos.
+      # BehaviorTree.ROS2, see stepit.repos.
       UPSTREAM_WORKSPACE: stepit.repos
     runs-on: ubuntu-24.04
     steps:

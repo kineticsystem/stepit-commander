@@ -11,6 +11,12 @@ source /opt/ros/jazzy/setup.bash
 # build/test/update aliases in the container.
 cd "$(dirname "$(readlink -f "$0")")/.."
 
+# BehaviorTree.ROS2, from stepit.repos, into modules/, at the commit it pins:
+# before rosdep, which reads its package.xml. A clone already there moves to
+# its pinned commit, keeping any local change.
+mkdir -p modules
+vcs import --input stepit.repos modules
+
 # Initialize rosdep if not already done.
 if [ ! -f /etc/ros/rosdep/sources.list.d/20-default.list ]; then
     sudo rosdep init

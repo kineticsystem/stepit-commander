@@ -1,7 +1,8 @@
-# The upstream workspace of industrial_ci, see .github/workflows/industrial_ci.yml.
-# BehaviorTree.ROS2 is a git submodule, which industrial_ci does not check out:
-# it imports it from here instead, at the commit the submodule records. Update
-# both together.
+# BehaviorTree.ROS2, which is not released as a Debian package: our fork, at the
+# commit the server is built and tested with. bin/update.sh imports it into
+# modules/, and industrial_ci into its upstream workspace. A rig that builds the
+# commander with other modules lists it once, in its own .repos file, at the
+# same commit.
 repositories:
   BehaviorTree.ROS2:
     type: git

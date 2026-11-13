@@ -40,12 +40,13 @@ whatever the folders listed in its parameters hold. See
 | `stepit_server` | The single action server, its parameters and its launch file. It knows nothing about the robot. |
 | `stepit_server_tests` | Tests of the server: the payload of a command, the status it reports while a tree runs, reading the objectives again when they change, and a new goal replacing the running objective. |
 
-`BehaviorTree.ROS2` is not released as a Debian package, so it is checked out as
-a git submodule under [`modules`](modules), next to `src`. Colcon builds every
-package it finds under the workspace root, so its packages are built together
-with ours.
+`BehaviorTree.ROS2` is not released as a Debian package, so
+[`stepit.repos`](stepit.repos) pins it to a commit, and `bin/update.sh` imports
+it with `vcs` into `modules`, next to `src`, a folder git ignores. Colcon builds
+every package it finds under the workspace root, so its packages are built
+together with ours.
 
-The submodule is our fork,
+The repository is our fork,
 [kineticsystem/BehaviorTree.ROS2](https://github.com/kineticsystem/BehaviorTree.ROS2),
 branch `humble`: upstream's `humble`, with the fixes we have proposed upstream
 and not yet released there. Today one: an exception thrown after
@@ -171,18 +172,17 @@ after `e.g.`. The server ignores it.
 
 ## Build and Run
 
-Check out the repository including its submodules:
+Check out the repository:
 
 ```bash
-git clone --recurse-submodules git@github.com:kineticsystem/stepit-commander.git
+git clone git@github.com:kineticsystem/stepit-commander.git
 ```
 
-If the `--recurse-submodules` switch was missed, the submodules can be cloned
-afterwards with:
-
-```bash
-git submodule update --init --recursive
-```
+BehaviorTree.ROS2 is not part of the repository: `bin/update.sh`, `update` in
+the container, imports it from [`stepit.repos`](stepit.repos) into `modules`
+before it installs the dependencies with rosdep. Run it before the first build,
+and again after a change to `stepit.repos`: the clone moves to the new commit,
+and keeps any local change.
 
 Everything is built and run inside a Docker container. From the root of the
 repo, create the image and the container (see [docker/README.md](docker/README.md)):
@@ -231,9 +231,8 @@ Driver:
 | [`ci-format.yml`](.github/workflows/ci-format.yml) | The pre-commit hooks that need no ROS: clang-format, black, codespell, and the checks of whitespace and files. |
 | [`ci-ros-lint.yml`](.github/workflows/ci-ros-lint.yml) | The ament linters of every package: copyright, lint_cmake and cpplint. |
 
-Industrial CI does not check out submodules: it imports BehaviorTree.ROS2 from
-[`stepit.repos`](stepit.repos), at the commit the submodule records. **Update
-both together** when moving the submodule.
+Industrial CI imports BehaviorTree.ROS2 from [`stepit.repos`](stepit.repos), the
+file `bin/update.sh` reads, so CI and a local build use the same commit.
 
 The workflows run locally with [Nektos `act`](https://github.com/nektos/act),
 which reads the variables of [`.env`](.env), from a clean checkout: Industrial

@@ -1,4 +1,0 @@
-[submodule "modules/BehaviorTree.ROS2"]
-	path = modules/BehaviorTree.ROS2
-	url = https://github.com/kineticsystem/BehaviorTree.ROS2.git
-	branch = humble
