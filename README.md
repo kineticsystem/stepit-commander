@@ -23,6 +23,8 @@ and the objectives are the robot's, in packages of its own, and the server loads
 whatever the folders listed in its parameters hold. See
 [Plugging in a Robot](#plugging-in-a-robot).
 
+How the server is built, and why, is in [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ## Table of Contents <!-- omit in toc -->
 
 - [Packages](#packages)

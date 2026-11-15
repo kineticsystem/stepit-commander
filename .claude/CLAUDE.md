@@ -98,7 +98,7 @@ next test's subscriptions.
 
 For the `architect` and `reviewer` skills: what they cannot find out alone.
 
-- There is no `docs/ARCHITECTURE.md` yet. The first one follows one idea: **the server is generic: it knows nothing about any robot, and a robot plugs in through parameters**. If a change breaks it, say so in the document and to the user.
+- `docs/ARCHITECTURE.md` follows one idea: **the server is generic: it knows nothing about any robot, and a robot plugs in through parameters**. If a change breaks it, say so in the document and to the user.
 - Its shape is the newest `docs/ARCHITECTURE.md` of the other StepIt modules, e.g. StepIt Camera's: Introduction, The Big Picture (with a table of the action, topics and parameters), The Packages, the parts (loading the trees, the payload and the blackboard, preemption, the execution status), Tests, How to Extend the Server, Design Decisions and Trade-offs. Link it from the README and from [Architecture](#architecture).
 - **The review is a separate document, `docs/Review.md`**, opened with the date and the commit reviewed; `docs/ARCHITECTURE.md` describes the design and holds no review. The first finding to look for is anything in `stepit_server` that names a robot topic, action, service, behavior or objective.
 - BehaviorTree.ROS2, in `modules/`, is our fork of third-party code: describe how the server uses it and what the fork changes, but do not review its code.
