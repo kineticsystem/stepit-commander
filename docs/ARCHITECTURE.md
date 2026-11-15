@@ -208,7 +208,7 @@ A message is sent at most every 50 ms (`kDefaultPeriod`), only when something ch
 
 ### The Latched Topics
 
-The feedback reaches only the client that sent the goal. For every other client, the server publishes on two topics, both reliable and transient local with a depth of 1, so a client that subscribes at any time gets the last message at once:
+An action client receives only the feedback of its own goal. For every other client, the server publishes on two topics, both reliable and transient local with a depth of 1, so a client that subscribes at any time gets the last message at once:
 
 - `~/objective`, the name of the objective running: an empty name when the server starts, the name in `onTreeCreated`, an empty name in `onTreeExecutionCompleted`.
 - `~/execution`, the whole run, from `ExecutionStatus::snapshot()`:
@@ -317,7 +317,7 @@ What has no automated test:
 
 **The payload in the global blackboard, typed by shape.** A client writes plain YAML, with no types, and a behavior reads a `double` or a list of strings from a port with no conversion. The price is that the type follows the value: `joints: joint1` is a string and `joints: [joint1]` a list, and a behavior that wants one must be given that one, or accept both.
 
-**Two channels for the status of a run.** The feedback is small, the changes only, every 50 ms, for the client that sent the goal. The latched snapshot is whole, at most every 0.2 s, for everyone else and for a client that comes late. The feedback alone never reaches a second client, and the snapshot holds the whole tree each time, which is why it comes less often.
+**Two channels for the status of a run.** The feedback is small, the changes only, every 50 ms, for the client that sent the goal. The latched snapshot is whole, at most every 0.2 s, for everyone else and for a client that comes late. The feedback alone never reaches the action client of a second device, and the snapshot holds the whole tree each time, which is why it comes less often.
 
 **JSON in a `std_msgs/String`.** The tree and the statuses of its nodes fit no fixed message, and the feedback of `ExecuteTree` is a string anyway. A web page reads JSON directly. The price is that no message definition checks the fields: the comment of `execution_status.hpp` is the contract.
 
