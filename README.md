@@ -8,7 +8,8 @@ A single ROS 2 action server that commands a robot by executing *objectives*,
 written as [BehaviorTree.CPP](https://www.behaviortree.dev) trees.
 
 A client never talks to a controller directly. It sends the **name** of an
-objective and a **payload** holding its parameters to one action:
+objective and a **payload** holding its parameters to one action, here for
+`MoveJointsTo`, an example of a robot's objective:
 
 ```bash
 ros2 action send_goal /commander/execute_objective \
@@ -70,8 +71,10 @@ The goal of the action is `btcpp_ros2_interfaces/action/ExecuteTree`:
 
 The server parses the payload and writes every parameter into the **global
 blackboard** of the tree, where the behaviors read it through the `@` prefix,
-e.g. `{@offset}`. A payload that is not a map of scalars and lists is refused,
-and the goal is rejected before the tree is created.
+e.g. `{@offset}`. An empty payload is no parameter. A payload that is not a map
+of scalars and lists is refused, and the goal is rejected before the tree is
+created. One payload is not refused today: a key that is not a scalar, e.g.
+`{[a]: 1}`, ends the server ([docs/Review.md](docs/Review.md), finding 4).
 
 Values are typed as follows, so that the ports of the behaviors read them
 without any further conversion:
@@ -80,6 +83,10 @@ without any further conversion:
 |---|---|
 | `offset: -6.28` | `double` |
 | `max_velocity: 3` | `double` |
+| `timeout: 1e3` | `double` |
+| `mask: 0x10` | `double` |
+| `limit: inf` | `double` |
+| `gain: nan` | `double` |
 | `controllers: velocity_controller` | `std::string` |
 | `controllers: '5'` (quoted) | `std::string` |
 | `joints: [joint1, joint2]` | `std::vector<std::string>` |
@@ -88,11 +95,17 @@ without any further conversion:
 ### One Objective at a Time
 
 The server runs one objective at a time. **A goal sent while an objective runs
-replaces it**: the running tree is halted at its next tick, at most 10 ms
-later, which stops whatever its behaviors were doing, its goal ends as aborted
-with the message `Preempted by objective '<name>'`, and the new objective
-starts. Asking for something else is therefore enough to stop the robot, e.g.
-from a gamepad or a Stop button that runs an objective of its own.
+replaces it**: the running tree is halted at its next tick, 10 ms later at
+most at the default `tick_frequency` of 100 Hz, which stops whatever its
+behaviors were doing, its goal ends as aborted with the message
+`Preempted by objective '<name>'`, and the new objective starts. Asking for
+something else is therefore enough to stop the robot, e.g. from a gamepad or a
+Stop button that runs an objective of its own.
+
+Two goals wait longer today. A behavior that blocks in its tick delays the halt
+until the tick returns. A goal that arrives while a tree is being created,
+before its first tick, does not replace it: it waits for that objective to end.
+[docs/Review.md](docs/Review.md) has the measurements.
 
 To make a new goal wait for the running objective to end instead, set the
 parameter `preempt` to `false` in the robot's parameter file:
@@ -113,13 +126,17 @@ ros2 service call /commander/execute_objective/_action/cancel_goal \
 
 A client can also cancel its own goal, as the StepIt Editor's Stop button does.
 
+While a goal waits for the running objective, with `preempt` false or in the
+case above, the server answers no cancel until the running tree ends
+([docs/Review.md](docs/Review.md), findings 1 and 8).
+
 **Any client can see what runs.** The server publishes the name of the running objective on `~/objective` (`std_msgs/String`), e.g. `/stepit_server/objective`, and an empty name when it ends. The topic is latched, reliable and transient local, so a client that subscribes at any time, e.g. a web page opened on a second device, gets the current value at once, whoever sent the goal:
 
 ```bash
 ros2 topic echo /stepit_server/objective --qos-durability transient_local --qos-reliability reliable
 ```
 
-**Any client can follow a run.** While a tree runs, the feedback of its goal tells the status of each node, the first message with the tree and the number of the run, the next ones only what changed: the StepIt Editor shows it, see [`ExecutionStatus`](src/stepit_server/include/stepit_server/execution_status.hpp). The feedback reaches only the client that sent the goal, so the server also publishes the whole run on `~/execution` (`std_msgs/String`), e.g. `/stepit_server/execution`, latched like `~/objective`: a JSON object with the number of the run, the objective, the tree, the last status of every node that has run, and the progress of the running ones. It is published when the run changes, at most once per `execution_period`, 0.2 s by default, since each message holds the whole tree; a change held back by the period goes out as soon as the period has passed. It is published once more when the run ends, with how it ended, e.g. preempted. A client that comes in the middle of a run, or after, gets it whole at once:
+**Any client can follow a run.** While a tree runs, the feedback of its goal tells the status of each node, the first message with the tree and the number of the run, the next ones only what changed: the StepIt Editor shows it, see [`ExecutionStatus`](src/stepit_server/include/stepit_server/execution_status.hpp). An action client receives only the feedback of its own goal, so the server also publishes the whole run on `~/execution` (`std_msgs/String`), e.g. `/stepit_server/execution`, latched like `~/objective`: a JSON object with the number of the run, the objective, the tree, the last status of every node that has run, and the progress of the running ones. It is published when the run changes, at most once per `execution_period`, 0.2 s by default, since each message holds the whole tree; a change held back by the period goes out as soon as the period has passed. It is published once more when the run ends, with its `status`, `cancelled` and a `message`: a preempted run has `cancelled` true, as a cancelled one, and its `message` tells the two apart, see [How a Run Ends](docs/ARCHITECTURE.md#how-a-run-ends). A client that comes in the middle of a run, or after, gets it whole at once:
 
 ```bash
 ros2 topic echo /stepit_server/execution --qos-durability transient_local --qos-reliability reliable
@@ -160,11 +177,20 @@ and is passed to the launch file, which loads it after the server's own
 ros2 launch stepit_server commander.launch.py params_file:=/path/to/robot.yaml
 ```
 
+An entry whose package is not found is logged and skipped. An entry whose
+package is found but lacks the subfolder, or that has no `/`, ends the server
+when it starts.
+
 The server reads the XML files again before each goal whenever one was added,
 changed or removed, also following the links of an installed folder back to its
 source when the package was built with `--symlink-install`, so a new or edited
 objective runs on the next goal, with no build and no restart. A new behavior
 needs a build, and a restart of the server, which loads the plugins once.
+
+One case undoes this today: after a parameter of the server's node is set while
+it runs, the next goal registers the trees again from the installed folders
+alone, and an objective that exists only in the source folder is gone until an
+XML file is saved ([docs/Review.md](docs/Review.md), finding 7).
 
 Editors such as the [StepIt Editor](https://github.com/kineticsystem/stepit-editor)
 describe the payload of an objective from a `<TreeNodesModel>` of its file,
@@ -197,7 +223,7 @@ repo, create the image and the container (see [docker/README.md](docker/README.m
 Inside the container, install the dependencies and build:
 
 ```bash
-./bin/update.sh    # rosdep install
+./bin/update.sh    # vcs import, then rosdep install
 ./bin/build.sh     # colcon build
 ```
 
@@ -225,7 +251,7 @@ The tests of the server need no robot.
 ## Continuous Integration
 
 Three GitHub Actions workflows run on every push and pull request, as in StepIt
-Driver:
+Motors:
 
 | Workflow | What it checks |
 |---|---|
